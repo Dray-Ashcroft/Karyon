@@ -1,0 +1,3413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RNA Pol I — Nucleolus</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Inter:wght@300;400;500;600&display=swap');
+  * {
+    margin:0; padding:0; box-sizing:border-box;
+    -webkit-tap-highlight-color: transparent; /* kills the blue box Android/Chrome shows on tap */
+    -webkit-touch-callout: none;
+  }
+  body {
+    background:#03050a; min-height:100vh;
+    display:flex; flex-direction:column; align-items:center;
+    font-family:'Inter',sans-serif; overflow-x:hidden;
+    padding:14px 16px 28px; gap:0;
+    -webkit-user-select:none; -moz-user-select:none; user-select:none; /* prevent accidental text/element selection on touch */
+    touch-action: manipulation; /* removes the ~300ms tap delay + double-tap-to-zoom that can eat the first tap */
+  }
+  .header { text-align:center; margin-bottom:12px; margin-top:2px; }
+  .eyebrow { font-family:'Space Mono',monospace; font-size:clamp(15px,4.2vw,24px); font-weight:700; letter-spacing:0.5px; color:rgba(220,245,255,0.95); text-transform:none; margin-bottom:5px; }
+  .title { font-family:'Inter',sans-serif; font-size:clamp(12px,3.2vw,17px); font-weight:400; color:rgba(0,200,255,0.82); letter-spacing:0.3px; }
+  .title span { color:#00c8ff; font-weight:600; }
+  .subtitle { font-family:'Inter',sans-serif; font-size:clamp(11px,2.6vw,13px); color:rgba(160,220,255,0.72); font-weight:400; letter-spacing:0.6px; margin-top:4px; }
+  .dish-wrap { position:relative; flex-shrink:0; }
+  canvas.main-canvas { display:block; border-radius:50%; cursor:crosshair; touch-action:manipulation; }
+  .narrative p { font-size:clamp(11px,2.8vw,12.5px); color:rgba(180,225,255,0.82); line-height:1.6; font-weight:300; transition:opacity 0.3s; }
+  .narrative p strong { color:#00c8ff; font-weight:500; }
+  .card-strip { width:100%; max-width:820px; display:flex; flex-direction:column; min-height:180px; }
+  .card-strip-title { font-family:'Space Mono',monospace; font-size:10px; letter-spacing:2.5px; color:rgba(0,180,255,0.65); text-transform:uppercase; margin-bottom:6px; padding-left:2px; }
+  .info-card {
+    background:rgba(5,15,35,0.85); border:1px solid rgba(0,150,220,0.14);
+    border-radius:10px; padding:11px 13px; cursor:pointer; transition:all 0.2s;
+    display:flex; gap:11px; align-items:flex-start; position:relative; overflow:hidden;
+    touch-action:manipulation;
+  }
+  .info-card::before { content:''; position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--cc); border-radius:3px 0 0 3px; opacity:0.45; transition:opacity 0.2s; }
+  .info-card:hover { background:rgba(0,30,70,0.9); border-color:var(--cc); transform:translateX(2px); }
+  .info-card:hover::before, .info-card.active::before { opacity:1; }
+  .info-card.active { background:rgba(0,40,90,0.9); border-color:var(--cc); }
+  .card-icon { width:30px; height:30px; border-radius:7px; background:rgba(0,0,0,0.3); border:1px solid var(--cc); display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:14px; }
+  .card-body { flex:1; min-width:0; }
+  .card-name { font-family:'Space Mono',monospace; font-size:9.5px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; margin-bottom:4px; color:var(--cc); }
+  .card-detail { font-size:clamp(10px,2.5vw,11.5px); color:rgba(170,210,240,0.75); line-height:1.55; font-weight:300; }
+  .card-detail strong { color:rgba(210,235,255,0.9); font-weight:500; }
+  .card-chevron { font-size:13px; color:var(--cc); opacity:0.35; align-self:center; flex-shrink:0; transition:opacity 0.2s,transform 0.2s; }
+  .info-card.active .card-chevron, .info-card:hover .card-chevron { opacity:1; transform:translateX(3px); }
+  /* Phase-aware card visibility */
+  .phase-card {
+    transition: opacity 0.35s ease, transform 0.35s ease, max-height 0.4s ease, margin-bottom 0.4s ease, padding 0.35s ease;
+    max-height: 220px;
+    overflow: hidden;
+    margin-bottom: 7px;
+  }
+  .phase-card.hidden {
+    opacity: 0 !important;
+    pointer-events: none !important;
+    max-height: 0 !important;
+    transform: translateX(-6px) !important;
+    margin-bottom: 0 !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+  }
+  /* Narrative + speed pill row */
+  .narrative-row {
+    width:100%; max-width:820px; display:flex; gap:8px;
+    align-items:flex-start; margin:12px 0 10px;
+  }
+  .narrative {
+    flex:1; min-width:0;
+    background:rgba(0,180,255,0.04); border:1px solid rgba(0,180,255,0.14);
+    border-radius:10px; padding:11px 15px; min-height:52px;
+    display:flex; flex-direction:column; justify-content:center; gap:3px;
+  }
+  /* Material 3 — vertical segmented speed pill */
+  .speed-pill-v {
+    display:flex; flex-direction:column; align-items:center;
+    width:34px; flex-shrink:0;
+    background:rgba(0,18,52,0.92);
+    border:1px solid rgba(0,200,255,0.22);
+    border-radius:999px; overflow:hidden;
+    box-shadow:0 1px 3px rgba(0,0,0,0.40), 0 0 0 1px rgba(0,200,255,0.06);
+  }
+  .spd-btn {
+    width:34px; height:34px; background:none; border:none;
+    color:rgba(0,200,255,0.62); font-size:15px; font-weight:400;
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer; padding:0; position:relative; overflow:hidden;
+    transition:color 0.15s; touch-action:manipulation;
+  }
+  /* M3 state layer */
+  .spd-btn::before {
+    content:''; position:absolute; inset:0;
+    background:currentColor; opacity:0; transition:opacity 0.15s;
+  }
+  .spd-btn:hover:not(:disabled)::before { opacity:0.08; }
+  .spd-btn:active:not(:disabled)::before { opacity:0.14; }
+  .spd-btn:hover:not(:disabled) { color:#00c8ff; }
+  .spd-btn:disabled { color:rgba(0,200,255,0.18); cursor:default; }
+  .spd-div { width:20px; height:1px; background:rgba(0,200,255,0.14); flex-shrink:0; }
+  .spd-val {
+    font-family:'Space Mono',monospace; font-size:8.5px; letter-spacing:0.2px;
+    color:rgba(0,200,255,0.78); height:26px;
+    display:flex; align-items:center; justify-content:center;
+    width:34px; pointer-events:none;
+  }
+  /* ── Organelle calling card ─────────────────────────────────── */
+  #organelle-card {
+    position:fixed; z-index:300;
+    background:rgba(8,10,24,0.96);
+    border:1px solid rgba(160,120,255,0.38);
+    border-radius:13px; padding:14px 16px 15px;
+    width:272px;
+    backdrop-filter:blur(16px);
+    box-shadow:0 10px 36px rgba(0,0,0,0.65), 0 0 0 1px rgba(140,100,255,0.08);
+    opacity:1; transition:opacity 0.16s ease;
+    pointer-events:auto;
+  }
+  #organelle-card.hidden { opacity:0; pointer-events:none; }
+  .ocard-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:9px; }
+  #ocard-title { font:700 0.92rem/1.3 'Space Mono',monospace; color:rgba(220,195,255,1); letter-spacing:0.3px; }
+  #ocard-close { background:none; border:none; cursor:pointer; color:rgba(180,155,225,0.60); font-size:1.15rem; line-height:1; padding:0 0 0 10px; flex-shrink:0; transition:color 0.15s; touch-action:manipulation; }
+  #ocard-close:hover { color:#fff; }
+  #ocard-body { font:400 0.80rem/1.58 'Inter',sans-serif; color:rgba(195,180,228,0.88); }
+  #ocard-tag { display:inline-block; margin-top:9px; font:600 0.68rem/1 'Space Mono',monospace; letter-spacing:1.5px; text-transform:uppercase; color:rgba(140,100,255,0.75); background:rgba(140,100,255,0.10); border:1px solid rgba(140,100,255,0.22); border-radius:4px; padding:3px 7px; }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1 class="eyebrow">Eukaryotic Transcription</h1>
+  <p class="title">RNA Polymerase <span>I</span></p>
+  <p class="subtitle">rRNA Synthesis · Nucleolus</p>
+</div>
+<div class="dish-wrap">
+  <canvas id="mainCanvas" class="main-canvas"></canvas>
+</div>
+<div class="narrative-row">
+  <div class="narrative" id="narrative">
+    <p id="narr1"><strong>RNA Polymerase I</strong> binds to rDNA in the nucleolus and unwinds the double helix to begin transcription.</p>
+    <p id="narr2">It synthesises a long <strong>pre-rRNA</strong> transcript, which is processed into the rRNAs that form the core of ribosomes.</p>
+  </div>
+  <div class="speed-pill-v">
+    <button class="spd-btn" id="spdUp" onclick="stepSpeed(1)" disabled title="Speed up">+</button>
+    <span class="spd-div"></span>
+    <span class="spd-val" id="spdVal">1×</span>
+    <span class="spd-div"></span>
+    <button class="spd-btn" id="spdDown" onclick="stepSpeed(-1)" title="Slow down">−</button>
+  </div>
+</div>
+<div class="card-strip">
+  <p class="card-strip-title" id="card-strip-title">Click structure to explore</p>
+
+  <!-- Phase 0–1: Pol I crawling -->
+  <div class="info-card phase-card" data-phases="0,1" id="card-rdna" style="--cc:#4a8fff" onclick="selectCard('rdna')">
+    <div class="card-icon">🧬</div>
+    <div class="card-body">
+      <p class="card-name">rDNA — Ribosomal DNA</p>
+      <p class="card-detail">Ribosomal DNA is present as <strong>multiple copies</strong> in the nucleolus. RNA Pol I binds to the rDNA promoter, unwinds the double helix, and exposes the <strong>template strand</strong> for transcription.</p>
+    </div>
+    <span class="card-chevron">›</span>
+  </div>
+  <div class="info-card phase-card" data-phases="0,1" id="card-pol1" style="--cc:#00c8ff" onclick="selectCard('pol1')">
+    <div class="card-icon">⚙️</div>
+    <div class="card-body">
+      <p class="card-name">RNA Polymerase I</p>
+      <p class="card-detail"><strong>RNA Polymerase I</strong> is found exclusively in the nucleolus. It is responsible for transcribing <strong>rDNA into pre-rRNA</strong> — the precursor to all ribosomal RNAs. It moves along the template strand and synthesises pre-rRNA continuously.</p>
+    </div>
+    <span class="card-chevron">›</span>
+  </div>
+  <div class="info-card phase-card" data-phases="0,1" id="card-rrna" style="--cc:#ffd166" onclick="selectCard('rrna')">
+    <div class="card-icon">🔗</div>
+    <div class="card-body">
+      <p class="card-name">pre-rRNA Transcript (45S)</p>
+      <p class="card-detail">The initial transcript is called <strong>45S pre-rRNA</strong>. It is a large precursor that is later <strong>processed (cleaved)</strong> into three functional rRNAs — <strong>28S</strong>, <strong>18S</strong>, and <strong>5.8S</strong> — which form the structural backbone of every ribosome.</p>
+    </div>
+    <span class="card-chevron">›</span>
+  </div>
+
+  <!-- Phase 3: snoRNPs -->
+  <div class="info-card phase-card" data-phases="3" id="card-snornp" style="--cc:#ff88cc" onclick="selectCard('snornp')">
+    <div class="card-icon">✨</div>
+    <div class="card-body">
+      <p class="card-name">snoRNPs — Small Nucleolar RNPs</p>
+      <p class="card-detail">Small nucleolar ribonucleoproteins bind the <strong>45S pre-rRNA</strong> after transcription. They guide <strong>chemical modifications</strong> of specific nucleotides — essential for the pre-rRNA to fold correctly and assemble into functional ribosomes.</p>
+    </div>
+    <span class="card-chevron">›</span>
+  </div>
+
+  <!-- Phase 4: cleavage products -->
+  <div class="info-card phase-card" data-phases="4" id="card-18s" style="--cc:#00d8ff" onclick="selectCard('18s')">
+    <div class="card-icon">🔵</div>
+    <div class="card-body">
+      <p class="card-name">18S rRNA</p>
+      <p class="card-detail"><strong>18S rRNA</strong> forms the structural core of the <strong>small (40S) ribosomal subunit</strong>. During translation, it helps position mRNA so that codons can be accurately read by the ribosome.</p>
+    </div>
+    <span class="card-chevron">›</span>
+  </div>
+  <div class="info-card phase-card" data-phases="4" id="card-28s" style="--cc:#ff8c00" onclick="selectCard('28s')">
+    <div class="card-icon">🟠</div>
+    <div class="card-body">
+      <p class="card-name">28S + 5.8S rRNA</p>
+      <p class="card-detail"><strong>28S</strong> and <strong>5.8S rRNA</strong> are both derived from the 45S pre-rRNA. Together they form the core of the <strong>large (60S) ribosomal subunit</strong>. The 28S rRNA contains the active site that catalyses <strong>peptide bond formation</strong> during protein synthesis.</p>
+    </div>
+    <span class="card-chevron">›</span>
+  </div>
+
+  <!-- Phase 5: assembly -->
+  <div class="info-card phase-card" data-phases="5" id="card-pre40s" style="--cc:#00d8ff" onclick="selectCard('pre40s')">
+    <div class="card-icon">🔷</div>
+    <div class="card-body">
+      <p class="card-name">Pre-40S — Small Subunit</p>
+      <p class="card-detail">The <strong>18S rRNA</strong> combines with ribosomal proteins to form the <strong>pre-40S particle</strong>. It is exported to the cytoplasm, where it completes maturation and joins with the 60S subunit to form a complete <strong>80S ribosome</strong>.</p>
+    </div>
+    <span class="card-chevron">›</span>
+  </div>
+  <div class="info-card phase-card" data-phases="5" id="card-pre60s" style="--cc:#ff8c00" onclick="selectCard('pre60s')">
+    <div class="card-icon">🔶</div>
+    <div class="card-body">
+      <p class="card-name">Pre-60S — Large Subunit</p>
+      <p class="card-detail">The <strong>28S, 5.8S, and 5S rRNA</strong> assemble with ribosomal proteins to form the <strong>pre-60S particle</strong>. It is exported from the nucleus and completes its final maturation steps in the cytoplasm.</p>
+    </div>
+    <span class="card-chevron">›</span>
+  </div>
+
+  <!-- Phase 6: 5S docking + export -->
+  <div class="info-card phase-card" data-phases="6" id="card-5s" style="--cc:#b8ff80" onclick="selectCard('5s')">
+    <div class="card-icon">🟢</div>
+    <div class="card-body">
+      <p class="card-name">5S rRNA — RNA Pol III Product</p>
+      <p class="card-detail">Unlike the other rRNAs, the <strong>5S rRNA</strong> is transcribed <em>outside</em> the nucleolus by <strong>RNA Polymerase III</strong>. It is then imported into the nucleolus and incorporated into the <strong>large (60S) ribosomal subunit</strong>.</p>
+    </div>
+    <span class="card-chevron">›</span>
+  </div>
+  <div class="info-card phase-card" data-phases="6" id="card-export" style="--cc:#00c8ff" onclick="selectCard('export')">
+    <div class="card-icon">🚪</div>
+    <div class="card-body">
+      <p class="card-name">Nuclear Export via NPCs</p>
+      <p class="card-detail">Pre-ribosomal subunits are too large to diffuse through the nuclear envelope. They are actively transported out through <strong>nuclear pore complexes (NPCs)</strong> — large protein channels in the nuclear membrane. Final maturation takes place in the cytoplasm.</p>
+    </div>
+    <span class="card-chevron">›</span>
+  </div>
+
+  <!-- Phase 7: nuclear export animation -->
+  <div class="info-card phase-card" data-phases="7" id="card-npc" style="--cc:#39ff80" onclick="selectCard('npc')">
+    <div class="card-icon">🔵</div>
+    <div class="card-body">
+      <p class="card-name">Nuclear Pore Complex (NPC)</p>
+      <p class="card-detail">Nuclear pore complexes are large <strong>protein channels</strong> that span both membranes of the nuclear envelope. They control the selective movement of molecules between the nucleus and cytoplasm. Large pre-ribosomal particles require <strong>specific export proteins</strong> to pass through.</p>
+    </div>
+    <span class="card-chevron">›</span>
+  </div>
+  <div class="info-card phase-card" data-phases="7" id="card-cytoplasm" style="--cc:#ffd166" onclick="selectCard('cytoplasm')">
+    <div class="card-icon">🌐</div>
+    <div class="card-body">
+      <p class="card-name">Cytoplasmic Maturation</p>
+      <p class="card-detail">Once in the cytoplasm, both subunits complete their final maturation. The <strong>small (40S)</strong> and <strong>large (60S) subunits</strong> then join together to form a complete, translation-ready <strong>80S ribosome</strong>.</p>
+    </div>
+    <span class="card-chevron">›</span>
+  </div>
+
+  <!-- Phase 8: Whole cell reveal -->
+  <div class="info-card phase-card" data-phases="8" id="card-cell" style="--cc:#88ccff" onclick="selectCard('cell')">
+    <div class="card-icon">🔵</div>
+    <div class="card-body">
+      <p class="card-name">Eukaryotic Cell — Organelles</p>
+      <p class="card-detail">A eukaryotic cell contains membrane-bound <strong>organelles</strong> with specialised roles. The <strong>rough ER</strong> and <strong>Golgi</strong> process proteins; <strong>mitochondria</strong> supply energy; the <strong>cytoskeleton</strong> provides structural support.</p>
+    </div>
+    <span class="card-chevron">›</span>
+  </div>
+  <div class="info-card phase-card" data-phases="8" id="card-translation" style="--cc:#ffd166" onclick="selectCard('translation')">
+    <div class="card-icon">⚙️</div>
+    <div class="card-body">
+      <p class="card-name">Translation — Protein Synthesis</p>
+      <p class="card-detail">The <strong>pre-40S</strong> and <strong>pre-60S</strong> subunits join onto an <strong>mRNA</strong> to form a complete <strong>80S ribosome</strong>. It then reads the mRNA codons to assemble a chain of amino acids — a <strong>protein</strong>.</p>
+    </div>
+    <span class="card-chevron">›</span>
+  </div>
+</div>
+
+<!-- Organelle calling card — shown on click in Phase 8 -->
+<div id="organelle-card" class="hidden">
+  <div class="ocard-header">
+    <span id="ocard-title"></span>
+    <button id="ocard-close" title="Close">×</button>
+  </div>
+  <div id="ocard-body"></div>
+  <span id="ocard-tag"></span>
+</div>
+
+<script>
+const mainCanvas = document.getElementById('mainCanvas');
+const ctx = mainCanvas.getContext('2d');
+let SIZE, CX, CY, animT=0, selected=null;
+let staticGrad = {}; // gradients that only depend on SIZE/CX/CY — rebuilt on resize, not every frame
+let pulseT={rdna:0,pol1:0,rrna:0};
+
+// Speed control
+let speedMultiplier = 1.0;
+const SPEEDS = [0.25, 0.5, 0.75, 1.0];
+let speedIdx = 3; // start at 1×
+
+function stepSpeed(dir) {
+  speedIdx = Math.max(0, Math.min(SPEEDS.length - 1, speedIdx + dir));
+  speedMultiplier = SPEEDS[speedIdx];
+  document.getElementById('spdVal').textContent = speedMultiplier + '×';
+  document.getElementById('spdDown').disabled = speedIdx === 0;
+  document.getElementById('spdUp').disabled  = speedIdx === SPEEDS.length - 1;
+}
+
+// Pol I crawl state — progress 0..1 across the helix
+let polProgress = 0.18;
+const POL_SPEED = 0.0008;
+
+// Phase system
+// 0 = Pol I crawling + rRNA growing
+// 1 = Pol I detaching (brief pause)
+// 2 = rRNA released, folding into loops
+// 3 = snoRNPs appear and interact
+// 4 = cleavage — 45S splits into 18S, 5.8S, 28S; spacers fade
+let phase = 0;
+let phaseT = 0;
+let foldProgress = 0;
+let detachAlpha = 1;
+
+// Cleavage state
+let cleavageProgress = 0; // 0..1
+let fragmentPositions = null;
+function initFragments() {
+  // Start all fragments at centre, then they drift apart
+  const cx = CX, cy = CY + SIZE * 0.05;
+  fragmentPositions = {
+    s18:  { sx:cx, sy:cy, tx:cx-SIZE*0.22, ty:cy-SIZE*0.16, color:'#00e8ff',  label:'18S rRNA',  r:SIZE*0.055 },
+    s58:  { sx:cx, sy:cy, tx:cx,           ty:cy+SIZE*0.22, color:'#88ffcc',  label:'5.8S rRNA', r:SIZE*0.032 },
+    s28:  { sx:cx, sy:cy, tx:cx+SIZE*0.20, ty:cy-SIZE*0.12, color:'#bb99ff',  label:'28S rRNA',  r:SIZE*0.075 },
+    sp1:  { sx:cx, sy:cy, tx:cx-SIZE*0.28, ty:cy+SIZE*0.18, color:'#445566',  label:'spacer',    r:SIZE*0.030, spacer:true },
+    sp2:  { sx:cx, sy:cy, tx:cx+SIZE*0.24, ty:cy+SIZE*0.20, color:'#334455',  label:'spacer',    r:SIZE*0.025, spacer:true },
+  };
+}
+
+// Phase 5 — subunit assembly
+let assemblyProgress = 0;
+let rProteins40 = [];
+let rProteins60 = [];
+
+// Phase 6 — 5S docking + nuclear export
+let dockingProgress  = 0;   // 0..1  — 5S approaches groove → locks in
+let glowProgress     = 0;   // 0..1  — cyan-gold ripple through 60S
+let exportProgress   = 0;   // 0..1  — both subunits drift toward envelope
+let glowActive       = false;
+
+// Phase 7 — nuclear export through NPCs
+let exportPhaseT     = 0;   // raw frame counter within phase 7
+let npcExportProgress = 0;  // 0..1 — overall export timeline
+
+
+function initAssembly() {
+  assemblyProgress = 0;
+  rProteins40 = [];
+  rProteins60 = [];
+  const L = CX * 0.52;
+  const R = CX * 1.48;
+  const my = CY;
+  for (let i = 0; i < 22; i++) {
+    const angle = (i / 22) * Math.PI * 2 + Math.random() * 0.4;
+    const dist  = SIZE * (0.38 + Math.random() * 0.22);
+    const delay = 0.08 + (i / 22) * 0.55 + Math.random() * 0.08;
+    rProteins40.push({
+      sx: L + Math.cos(angle) * dist, sy: my + Math.sin(angle) * dist,
+      tx: L + (Math.random()-0.5)*SIZE*0.14, ty: my + (Math.random()-0.5)*SIZE*0.11,
+      delay, progress:0, speed:0.010+Math.random()*0.007,
+      r: SIZE*(0.013+Math.random()*0.009), hue:195+Math.random()*30,
+    });
+  }
+  for (let i = 0; i < 28; i++) {
+    const angle = (i / 28) * Math.PI * 2 + Math.random() * 0.4;
+    const dist  = SIZE * (0.38 + Math.random() * 0.22);
+    const delay = 0.10 + (i / 28) * 0.58 + Math.random() * 0.08;
+    rProteins60.push({
+      sx: R + Math.cos(angle) * dist, sy: my + Math.sin(angle) * dist,
+      tx: R + (Math.random()-0.5)*SIZE*0.18, ty: my + (Math.random()-0.5)*SIZE*0.14,
+      delay, progress:0, speed:0.009+Math.random()*0.007,
+      r: SIZE*(0.012+Math.random()*0.009), hue:195+Math.random()*30,
+    });
+  }
+}
+
+// snoRNP particles
+let snoRNPs = [];
+function initSnoRNPs(cx, cy, r) {
+  snoRNPs = [];
+  for (let i = 0; i < 8; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const dist  = r * (0.3 + Math.random() * 0.5);
+    snoRNPs.push({
+      x: cx + Math.cos(angle) * dist,
+      y: cy + Math.sin(angle) * dist,
+      tx: cx + (Math.random() - 0.5) * r * 0.6, // target on rRNA
+      ty: cy + r * 0.1 + Math.random() * r * 0.3,
+      progress: 0,
+      dwellT: 0,
+      color: Math.random() < 0.5 ? '#ff88cc' : '#ffaa44',
+      r: SIZE * (0.012 + Math.random() * 0.010),
+      speed: 0.008 + Math.random() * 0.006,
+    });
+  }
+}
+
+// Folded rRNA loop anchor points — computed once on phase 2 entry
+let foldLoops = [];
+function initFoldLoops() {
+  foldLoops = [];
+  const cx = CX, cy = CY + SIZE * 0.05;
+  const loops = [
+    { ox: -0.22, oy: -0.05, rx: 0.14, ry: 0.09, angle: -0.3 },
+    { ox:  0.10, oy: -0.12, rx: 0.11, ry: 0.07, angle:  0.5 },
+    { ox: -0.08, oy:  0.14, rx: 0.13, ry: 0.08, angle: -0.2 },
+    { ox:  0.18, oy:  0.10, rx: 0.09, ry: 0.06, angle:  0.8 },
+    { ox: -0.16, oy:  0.18, rx: 0.08, ry: 0.05, angle:  0.1 },
+    { ox:  0.05, oy:  0.22, rx: 0.10, ry: 0.06, angle: -0.6 },
+  ];
+  loops.forEach(l => {
+    foldLoops.push({
+      x: cx + l.ox * SIZE,
+      y: cy + l.oy * SIZE,
+      rx: l.rx * SIZE,
+      ry: l.ry * SIZE,
+      angle: l.angle,
+    });
+  });
+}
+
+const narratives = {
+  rdna:   ['<strong>rDNA</strong> is present as multiple copies in the nucleolus and contains the genes that code for ribosomal RNA.','RNA Pol I binds to the rDNA promoter and unwinds the double helix to expose the template strand for transcription.'],
+  pol1:   ['<strong>RNA Polymerase I</strong> is the enzyme that transcribes rDNA inside the nucleolus — it is responsible for producing pre-rRNA.','It moves along the template strand, synthesising a long pre-rRNA molecule that will be processed into functional rRNAs.'],
+  rrna:   ['The initial transcript produced from rDNA is called <strong>pre-rRNA (45S)</strong> — a large precursor RNA molecule.','It is later processed (cleaved) into <strong>28S, 18S, and 5.8S rRNA</strong> — the structural components of every ribosome in the cell.'],
+  snornp: ['<strong>snoRNPs</strong> (small nucleolar ribonucleoproteins) bind the 45S pre-rRNA after it is released from RNA Pol I.','They guide <strong>chemical modifications</strong> of specific nucleotides, helping the pre-rRNA fold correctly for ribosome assembly.'],
+  '18s':  ['<strong>18S rRNA</strong> forms the structural backbone of the <strong>small (40S) ribosomal subunit</strong>.','During translation, it helps position mRNA correctly so that codons can be read accurately by the ribosome.'],
+  '28s':  ['<strong>28S rRNA</strong> and <strong>5.8S rRNA</strong> are both derived from the 45S pre-rRNA and form the core of the <strong>large (60S) ribosomal subunit</strong>.','The 28S rRNA contains the active site that <strong>catalyses peptide bond formation</strong> during protein synthesis.'],
+  pre40s: ['The <strong>pre-40S particle</strong> is formed when 18S rRNA assembles with ribosomal proteins inside the nucleus.','It is exported to the cytoplasm, where it completes maturation and joins with the 60S subunit to form a complete <strong>80S ribosome</strong>.'],
+  pre60s: ['The <strong>pre-60S particle</strong> is assembled from 28S, 5.8S, and 5S rRNA together with ribosomal proteins.','After export from the nucleus, it undergoes final maturation in the cytoplasm to become a functional large subunit.'],
+  '5s':   ['<strong>5S rRNA</strong> is unique — unlike the other rRNAs, it is transcribed <em>outside</em> the nucleolus by <strong>RNA Polymerase III</strong>.','It is imported into the nucleolus and incorporated into the <strong>large (60S) ribosomal subunit</strong>.'],
+  export: ['<strong>Nuclear pore complexes (NPCs)</strong> are large protein channels embedded in the nuclear envelope.','Pre-ribosomal subunits are actively transported through these pores into the cytoplasm, where final ribosome assembly takes place.'],
+  npc:    ['The <strong>nuclear pore complex (NPC)</strong> is a large protein channel that spans the double membrane of the nuclear envelope.','Pre-ribosomal subunits are too large to pass freely — they require <strong>specific export proteins</strong> to be actively transported into the cytoplasm.'],
+  cytoplasm: ['Once in the cytoplasm, the <strong>pre-40S</strong> and <strong>pre-60S</strong> subunits complete their final maturation steps.','They then join together to form a complete <strong>80S ribosome</strong> that is ready to carry out protein synthesis.'],
+  cell:      ['A eukaryotic cell contains many membrane-bound <strong>organelles</strong> — each with a specific function.','The nucleus, rough ER, Golgi apparatus, and mitochondria all work together to support protein synthesis and energy metabolism.'],
+  translation: ['<strong>Translation</strong> is the process by which the ribosome reads mRNA and assembles amino acids into a <strong>protein</strong>.','The <strong>pre-40S</strong> and <strong>pre-60S</strong> subunits join onto an mRNA to form the active <strong>80S ribosome</strong> — the molecular machine of protein synthesis.'],
+  none:   ['<strong>RNA Polymerase I</strong> binds to rDNA in the nucleolus and unwinds the double helix to begin transcription.','It synthesises a long <strong>pre-rRNA</strong> transcript, which is processed into the rRNAs that form the core of ribosomes.']
+};
+
+// Map phase → which card IDs are visible
+const phaseCards = {
+  0: ['rdna','pol1','rrna'],
+  1: ['rdna','pol1','rrna'],
+  2: ['rrna'],
+  3: ['snornp'],
+  4: ['18s','28s'],
+  5: ['pre40s','pre60s'],
+  6: ['5s','export'],
+  7: ['npc','cytoplasm'],
+  8: ['cell','translation'],
+};
+
+let currentCardPhase = -1;
+
+function updateCardsForPhase(p) {
+  if (p === currentCardPhase) return;
+  currentCardPhase = p;
+  const show = new Set(phaseCards[p] || []);
+  document.querySelectorAll('.phase-card').forEach(card => {
+    // card.id is "card-rdna" etc — strip prefix to get the card key
+    const cardId = card.id.replace('card-', '');
+    if (show.has(cardId)) {
+      card.classList.remove('hidden');
+    } else {
+      card.classList.add('hidden');
+    }
+  });
+  // Update strip title
+  const titles = {
+    0:'Click structure to explore', 1:'Click structure to explore',
+    2:'45S pre-rRNA — explore', 3:'snoRNP processing — explore',
+    4:'Cleavage products — explore', 5:'Ribosomal subunits — explore',
+    6:'5S docking & export — explore', 7:'Nuclear export — explore',
+    8:'Whole cell — explore',
+  };
+  document.getElementById('card-strip-title').textContent = titles[p] || 'Click structure to explore';
+}
+
+function selectCard(id) {
+  selected = (selected===id) ? null : id;
+  document.querySelectorAll('.info-card').forEach(c=>c.classList.remove('active'));
+  if(selected) {
+    const el=document.getElementById('card-'+selected);
+    if(el) {
+      el.classList.add('active');
+      if(pulseT[selected]!==undefined) pulseT[selected]=animT;
+      // Scroll the activated card into view smoothly
+      el.scrollIntoView({ behavior:'smooth', block:'nearest' });
+    }
+  }
+  const key=selected||'none';
+  const [l1,l2]=narratives[key]||narratives['none'];
+  const n1=document.getElementById('narr1'), n2=document.getElementById('narr2');
+  n1.style.opacity='0'; n2.style.opacity='0';
+  setTimeout(()=>{ n1.innerHTML=l1; n2.innerHTML=l2; n1.style.opacity='1'; n2.style.opacity='1'; },200);
+}
+
+function arc(x,y,r){ ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); }
+
+function computeSize(){
+  const maxH=window.innerHeight*0.50, maxW=Math.min(window.innerWidth-32,820);
+  return Math.round(Math.min(maxH,maxW));
+}
+function applySize(){
+  SIZE=computeSize(); CX=SIZE/2; CY=SIZE/2;
+  // Render the backing store at native device-pixel resolution so text,
+  // DNA strands, and subunits stay crisp on high-DPI displays (e.g. 4K
+  // classroom smart panels), while all drawing code keeps using SIZE-unit
+  // coordinates. Cap at 3x so huge panels don't tank performance.
+  const dpr = Math.min(window.devicePixelRatio || 1, 3);
+  mainCanvas.width = Math.round(SIZE * dpr);
+  mainCanvas.height = Math.round(SIZE * dpr);
+  mainCanvas.style.width = SIZE + 'px';
+  mainCanvas.style.height = SIZE + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  buildStaticGradients();
+}
+
+// drawDishBG() and drawGlass() run on every single frame regardless of
+// phase, but their gradients only ever depend on SIZE/CX/CY. Building them
+// here (once per resize) instead of inside the render loop (60x/sec) cuts
+// real per-frame allocation/GC overhead — pure perf win, no visual change.
+function buildStaticGradients(){
+  const x=CX, y=CY, r=SIZE*0.49;
+
+  const bg=ctx.createRadialGradient(CX-SIZE*0.1,CY-SIZE*0.15,0,CX,CY,SIZE*0.47);
+  bg.addColorStop(0,'#020810'); bg.addColorStop(0.7,'#010508'); bg.addColorStop(1,'#010306');
+  staticGrad.dishBG = bg;
+
+  const dof=ctx.createRadialGradient(x,y,r*0.73,x,y,r*0.975);
+  dof.addColorStop(0,'rgba(0,0,0,0)'); dof.addColorStop(1,'rgba(0,0,14,0.52)');
+  staticGrad.dof = dof;
+
+  try{
+    const rhl=ctx.createConicGradient(-0.55,x,y);
+    rhl.addColorStop(0,'rgba(255,255,255,0)'); rhl.addColorStop(0.07,'rgba(0,220,255,0.45)');
+    rhl.addColorStop(0.20,'rgba(0,200,255,0.12)'); rhl.addColorStop(0.32,'rgba(255,255,255,0)');
+    rhl.addColorStop(0.88,'rgba(255,255,255,0)'); rhl.addColorStop(0.93,'rgba(0,200,255,0.10)'); rhl.addColorStop(1,'rgba(255,255,255,0)');
+    staticGrad.rhl = rhl;
+    staticGrad.rhlOk = true;
+  }catch(e){
+    staticGrad.rhlOk = false;
+  }
+
+  const hl=ctx.createRadialGradient(x-r*0.30,y-r*0.33,0,x-r*0.30,y-r*0.33,r*0.22);
+  hl.addColorStop(0,'rgba(0,200,255,0.10)'); hl.addColorStop(1,'rgba(0,0,0,0)');
+  staticGrad.hl = hl;
+
+  const hl2=ctx.createRadialGradient(x-r*0.15,y-r*0.50,0,x-r*0.15,y-r*0.50,r*0.10);
+  hl2.addColorStop(0,'rgba(0,220,255,0.12)'); hl2.addColorStop(1,'rgba(0,0,0,0)');
+  staticGrad.hl2 = hl2;
+
+  const ref=ctx.createRadialGradient(x+r*0.42,y+r*0.40,0,x+r*0.42,y+r*0.40,r*0.28);
+  ref.addColorStop(0,'rgba(0,200,255,0.14)'); ref.addColorStop(1,'rgba(0,0,0,0)');
+  staticGrad.ref = ref;
+}
+
+function drawDishBG(){
+  arc(CX,CY,SIZE*0.47);
+  ctx.fillStyle=staticGrad.dishBG; ctx.fill();
+}
+
+function drawHelix(hl){
+  const sx=SIZE*0.06, ex=SIZE*0.94, my=CY*0.88;
+  const amp=SIZE*0.075, freq=Math.PI*2/(SIZE*0.40);
+  const al=hl?1:0.72;
+  const polX = sx + (ex-sx)*polProgress;
+
+  // Zones — small transient bubble (~10 bp) confined inside active site
+  const clampHalf = SIZE*0.095; // half-width of Pol I clamp
+  const unwindAhead = SIZE*0.018; // strands only begin to separate just inside the leading edge
+  const rewindBehind = SIZE*0.022; // strands snap back almost immediately behind the active site
+
+  ctx.save();
+  if(hl){ctx.shadowColor='#4a8fff';ctx.shadowBlur=22;}
+
+  const sg=ctx.createLinearGradient(sx,0,ex,0);
+  sg.addColorStop(0,   `rgba(50,110,255,${al*0.65})`);
+  sg.addColorStop(0.42,`rgba(90,150,255,${al*0.95})`);
+  sg.addColorStop(0.58,`rgba(40,80,200,${al*0.40})`);
+  sg.addColorStop(1,   `rgba(60,120,255,${al*0.70})`);
+
+  // Draw each strand point-by-point with dynamic separation
+  [0, Math.PI].forEach((phaseOffset, si) => {
+    ctx.beginPath();
+    const steps = 280;
+    for(let i=0;i<=steps;i++){
+      const x = sx + (ex-sx)*(i/steps);
+
+      // Distance from Pol I centre
+      const dist = x - polX;
+
+      // Base helix y
+      const baseY = my + Math.sin(freq*x + phaseOffset)*amp;
+
+      let y;
+
+      if(dist > unwindAhead) {
+        // ── Ahead of Pol I — normal helix ──────────────────────
+        y = baseY;
+
+      } else if(dist > -clampHalf) {
+        // ── Unwinding zone — strands peel apart ────────────────
+        // t=0 at unwindAhead (closed), t=1 at -clampHalf (fully open)
+        const t = 1 - (dist - (-clampHalf)) / (unwindAhead - (-clampHalf));
+        const easeT = t*t*(3-2*t); // smoothstep
+
+        // Each strand shifts away from centreline — small separation = small bubble
+        const sign = si===0 ? -1 : 1; // strand 0 up, strand 1 down
+        const separation = amp * 0.38 * easeT; // small — only ~10bp worth
+        y = my + sign * (amp * 0.20 + separation);
+
+      } else if(dist > -clampHalf - rewindBehind) {
+        // ── Rewinding zone — strands snap back together ─────────
+        // t=0 at exit of clamp, t=1 fully rewound
+        const t = (dist - (-clampHalf - rewindBehind)) / rewindBehind;
+        const easeT = 1 - t*t*(3-2*t); // inverted smoothstep — starts open, closes
+
+        const sign = si===0 ? -1 : 1;
+        const separation = amp * 0.38 * easeT;
+        y = my + sign * (amp * 0.20 + separation);
+
+      } else {
+        // ── Far behind — fully rewound helix ───────────────────
+        y = baseY;
+      }
+
+      i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+    }
+
+    // Strand behind Pol I slightly dimmer — it just rewound
+    const strandAlpha = si===0
+      ? al
+      : al * 0.92;
+    const strandColor = ctx.createLinearGradient(sx,0,ex,0);
+    strandColor.addColorStop(0,   `rgba(50,110,255,${strandAlpha*0.65})`);
+    strandColor.addColorStop(0.42,`rgba(90,150,255,${strandAlpha*0.95})`);
+    strandColor.addColorStop(0.58,`rgba(40,80,200,${strandAlpha*0.40})`);
+    strandColor.addColorStop(1,   `rgba(60,120,255,${strandAlpha*0.70})`);
+
+    ctx.strokeStyle = strandColor;
+    ctx.lineWidth = SIZE*0.016;
+    ctx.lineJoin = 'round';
+    ctx.lineCap  = 'round';
+    ctx.stroke();
+  });
+
+  // ── Rewind flash — brief glow where strands rejoin ───────────
+  const rewindX = polX - clampHalf - SIZE*0.008;
+  if(rewindX > sx && rewindX < ex){
+    const rg = ctx.createRadialGradient(rewindX, my, 0, rewindX, my, SIZE*0.030);
+    rg.addColorStop(0,'rgba(100,180,255,0.22)');
+    rg.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=rg;
+    ctx.beginPath(); ctx.arc(rewindX,my,SIZE*0.030,0,Math.PI*2); ctx.fill();
+  }
+
+  // ── Rungs — only outside clamp zone ──────────────────────────
+  const rs=SIZE*0.048;
+  for(let x=sx+rs; x<ex; x+=rs){
+    // Skip inside clamp + unwind zone
+    if(x > polX-clampHalf-unwindAhead*0.5 && x < polX+clampHalf) continue;
+    const y1=my+Math.sin(freq*x)*amp;
+    const y2=my+Math.sin(freq*x+Math.PI)*amp;
+    ctx.beginPath(); ctx.moveTo(x,y1); ctx.lineTo(x,y2);
+    ctx.strokeStyle=`rgba(80,145,255,${al*0.42})`; ctx.lineWidth=SIZE*0.008; ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+function drawPolI(hl){
+  const sx=SIZE*0.06, ex=SIZE*0.94, my=CY*0.88;
+  const amp=SIZE*0.075, freq=Math.PI*2/(SIZE*0.40);
+  const px = sx + (ex-sx)*polProgress;
+  const py = my; // sits on the helix midline
+  const pulse=hl?1+0.07*Math.sin((animT-pulseT.pol1)*0.11):1+0.012*Math.sin(animT*0.025);
+  const pr=SIZE*0.155*pulse;
+  ctx.save();
+  if(hl){ctx.shadowColor='#00c8ff';ctx.shadowBlur=32;}
+
+  // Outer aura
+  const aura=ctx.createRadialGradient(px,py,0,px,py,pr*1.5);
+  aura.addColorStop(0,'rgba(0,160,255,0.07)'); aura.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=aura; arc(px,py,pr*1.5); ctx.fill();
+
+  // Lobed blob
+  const lobes=[
+    {dx:-0.20,dy:-0.26,rx:0.58,ry:0.50,a:'rgba(0,155,205,0.36)'},
+    {dx: 0.18,dy:-0.24,rx:0.52,ry:0.46,a:'rgba(0,145,198,0.33)'},
+    {dx:-0.24,dy: 0.16,rx:0.50,ry:0.44,a:'rgba(0,138,192,0.31)'},
+    {dx: 0.16,dy: 0.14,rx:0.54,ry:0.46,a:'rgba(0,142,196,0.33)'},
+    {dx:-0.04,dy:-0.06,rx:0.60,ry:0.55,a:'rgba(0,150,200,0.26)'},
+    {dx: 0.02,dy: 0.26,rx:0.38,ry:0.32,a:'rgba(0,128,188,0.24)'},
+    {dx:-0.30,dy: 0.00,rx:0.34,ry:0.28,a:'rgba(0,132,192,0.22)'},
+    {dx: 0.26,dy: 0.02,rx:0.32,ry:0.27,a:'rgba(0,135,194,0.22)'},
+  ];
+  lobes.forEach(({dx,dy,rx,ry,a},i)=>{
+    const lx=px+dx*pr, ly=py+dy*pr;
+    const lg=ctx.createRadialGradient(lx,ly,0,lx,ly,pr*rx);
+    lg.addColorStop(0,a); lg.addColorStop(0.6,'rgba(0,95,155,0.10)'); lg.addColorStop(1,'rgba(0,35,90,0.0)');
+    ctx.fillStyle=lg; ctx.beginPath(); ctx.ellipse(lx,ly,pr*rx,pr*ry,i*0.38,0,Math.PI*2); ctx.fill();
+  });
+
+  // DNA cleft — dark channel where helix passes through
+  ctx.fillStyle='rgba(0,5,25,0.45)';
+  ctx.beginPath(); ctx.ellipse(px,py,pr*0.26,pr*0.14,0,0,Math.PI*2); ctx.fill();
+
+  ctx.restore();
+}
+
+function drawRNA(hl){
+  const sx=SIZE*0.06, ex=SIZE*0.94, my=CY*0.88;
+  const polX = sx + (ex-sx)*polProgress;
+  const clampHalf = SIZE*0.095;
+
+  // RNA exit channel is on the rear (left) face of Pol I
+  // The nascent strand exits here and accumulates as pol advances
+  const exitX = polX - clampHalf - SIZE*0.012; // just behind the clamp rear edge
+  const exitY = my + SIZE*0.028; // exits slightly below midline (RNA exit channel)
+
+  // How much RNA has been synthesised — proportional to how far pol has travelled
+  const travelled = polProgress - 0.18; // distance since start
+  if(travelled <= 0.005) return; // nothing yet
+
+  // RNA grows as a drooping strand trailing from the exit channel
+  // Anchor point moves with Pol I; older RNA hangs below
+  const rnaLen = (ex-sx) * travelled; // total length synthesised
+  const droopAmt = SIZE*0.09 + rnaLen * 0.15; // droop increases as strand grows
+
+  // The strand hangs from the current exit point and droops down-left
+  const endX = exitX - rnaLen * 0.62;
+  const endY = exitY + droopAmt;
+
+  const cp1x = exitX - rnaLen * 0.18;
+  const cp1y = exitY + SIZE*0.04;
+  const cp2x = exitX - rnaLen * 0.44;
+  const cp2y = endY - SIZE*0.02;
+
+  const al=hl?1:0.88;
+  const pulse=hl?1+0.08*Math.sin((animT-pulseT.rrna)*0.09):1;
+
+  ctx.save();
+  if(hl){ctx.shadowColor='#ffd166';ctx.shadowBlur=22;}
+
+  // Glow layer
+  const glow=ctx.createLinearGradient(exitX,exitY,endX,endY);
+  glow.addColorStop(0,'rgba(255,205,55,0.45)');
+  glow.addColorStop(0.3,'rgba(255,185,45,0.30)');
+  glow.addColorStop(1,'rgba(255,150,30,0.0)');
+  ctx.strokeStyle=glow; ctx.lineWidth=SIZE*0.028*pulse; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(exitX,exitY);
+  ctx.bezierCurveTo(cp1x,cp1y,cp2x,cp2y,endX,endY);
+  ctx.stroke();
+
+  // Core wavy strand
+  const core=ctx.createLinearGradient(exitX,exitY,endX,endY);
+  core.addColorStop(0,`rgba(255,218,75,${al})`);
+  core.addColorStop(0.6,`rgba(255,188,55,${al*0.9})`);
+  core.addColorStop(1,`rgba(255,155,35,${al*0.5})`);
+  ctx.strokeStyle=core; ctx.lineWidth=SIZE*0.013*pulse;
+  const steps=60;
+  ctx.beginPath();
+  for(let i=0;i<=steps;i++){
+    const t2=i/steps;
+    const bx=(1-t2)**3*exitX+3*(1-t2)**2*t2*cp1x+3*(1-t2)*t2**2*cp2x+t2**3*endX;
+    const by=(1-t2)**3*exitY+3*(1-t2)**2*t2*cp1y+3*(1-t2)*t2**2*cp2y+t2**3*endY;
+    const wave=Math.sin(i*0.9+animT*0.05)*SIZE*0.007*(0.3+t2*0.7);
+    i===0?ctx.moveTo(bx,by+wave):ctx.lineTo(bx,by+wave);
+  }
+  ctx.stroke();
+
+  // Small dot at exit point — where RNA leaves the enzyme
+  ctx.beginPath(); ctx.arc(exitX,exitY,SIZE*0.010,0,Math.PI*2);
+  ctx.fillStyle=`rgba(255,225,90,${al*0.85})`; ctx.fill();
+
+  ctx.restore();
+}
+
+function drawLabels(){
+  const sx=SIZE*0.06, ex=SIZE*0.94, my=CY*0.88;
+  const polX=sx+(ex-sx)*polProgress;
+
+  // ── rDNA label — pushed higher to clear the helix strand peak ──
+  const rhl=selected==='rdna';
+  const rx=SIZE*0.10;
+  ctx.save();
+  ctx.shadowColor='rgba(3,5,10,0.96)'; ctx.shadowBlur=7;
+  if(rhl){ ctx.shadowColor='#4a8fff'; ctx.shadowBlur=10; }
+  ctx.beginPath();
+  ctx.moveTo(rx, my-SIZE*0.015);
+  ctx.lineTo(rx+SIZE*0.015, my-SIZE*0.128);   // raised: was -0.09
+  ctx.lineTo(rx+SIZE*0.120, my-SIZE*0.128);
+  ctx.strokeStyle=rhl?'rgba(140,185,255,0.92)':'rgba(100,150,255,0.68)';
+  ctx.lineWidth=1.5; ctx.stroke();
+  ctx.fillStyle=rhl?'rgba(210,228,255,0.98)':'rgba(175,210,255,0.90)';
+  ctx.font=`bold ${Math.round(SIZE*0.040)}px Inter`;
+  ctx.fillText('rDNA', rx+SIZE*0.130, my-SIZE*0.122);
+  ctx.fillStyle=rhl?'rgba(185,215,255,0.95)':'rgba(165,200,255,0.90)';
+  ctx.font=`600 ${Math.round(SIZE*0.030)}px Inter`;
+  ctx.fillText('(double helix)', rx+SIZE*0.130, my-SIZE*0.088);
+  ctx.restore();
+
+  // ── RNA Pol I label — follows polymerase ──────────────────────
+  const phl=selected==='pol1';
+  ctx.save();
+  ctx.shadowColor='rgba(3,5,10,0.96)'; ctx.shadowBlur=7;
+  if(phl){ ctx.shadowColor='#00c8ff'; ctx.shadowBlur=12; }
+  ctx.beginPath();
+  ctx.moveTo(polX, my-SIZE*0.165);
+  ctx.lineTo(polX, my-SIZE*0.222);
+  ctx.strokeStyle=phl?'rgba(0,220,255,0.92)':'rgba(0,200,255,0.68)';
+  ctx.lineWidth=1.5; ctx.stroke();
+  ctx.textAlign='center';
+  ctx.fillStyle=phl?'rgba(200,248,255,0.98)':'rgba(168,235,255,0.90)';
+  ctx.font=`bold ${Math.round(SIZE*0.040)}px Inter`;
+  ctx.fillText('RNA Polymerase I', polX, my-SIZE*0.236);
+  ctx.restore(); ctx.textAlign='left';
+
+  // ── pre-rRNA label — follows RNA exit channel ──────────────────
+  const ehl=selected==='rrna';
+  const clampHalfL=SIZE*0.095;
+  const exitX=sx+(ex-sx)*polProgress - clampHalfL - SIZE*0.012;
+  const exitY =my+SIZE*0.028;
+  const travelled=polProgress-0.18;
+  const rnaLen=(ex-sx)*Math.max(travelled,0);
+  const droopY=exitY+SIZE*0.09+rnaLen*0.15;
+  const rnaEndX=exitX - rnaLen*0.62;
+  if(travelled>0.04){
+    ctx.save();
+    ctx.shadowColor='rgba(3,5,10,0.96)'; ctx.shadowBlur=7;
+    if(ehl){ ctx.shadowColor='#ffd166'; ctx.shadowBlur=10; }
+    ctx.beginPath();
+    ctx.moveTo(rnaEndX, droopY);
+    ctx.lineTo(rnaEndX+SIZE*0.020, droopY-SIZE*0.060);
+    ctx.lineTo(rnaEndX+SIZE*0.105, droopY-SIZE*0.060);
+    ctx.strokeStyle=ehl?'rgba(255,218,88,0.92)':'rgba(255,195,70,0.68)';
+    ctx.lineWidth=1.5; ctx.stroke();
+    ctx.fillStyle=ehl?'rgba(255,245,160,0.98)':'rgba(255,225,115,0.90)';
+    ctx.font=`bold ${Math.round(SIZE*0.040)}px Inter`;
+    ctx.fillText('pre-rRNA', rnaEndX+SIZE*0.112, droopY-SIZE*0.054);
+    ctx.restore();
+  }
+}
+
+function drawGlass(){
+  const x=CX,y=CY,r=SIZE*0.49;
+  ctx.fillStyle=staticGrad.dof; arc(x,y,r*0.975); ctx.fill();
+
+  ctx.save(); arc(x,y,r*0.975);
+  ctx.strokeStyle='rgba(0,200,255,0.26)'; ctx.lineWidth=r*0.050; ctx.stroke();
+  if(staticGrad.rhlOk){
+    ctx.strokeStyle=staticGrad.rhl; ctx.lineWidth=r*0.047; arc(x,y,r*0.975); ctx.stroke();
+  }else{
+    ctx.strokeStyle='rgba(255,255,255,0.30)'; ctx.lineWidth=r*0.018;
+    ctx.beginPath(); ctx.arc(x,y,r*0.975,Math.PI*1.15,Math.PI*1.72); ctx.stroke();
+  }
+  ctx.restore();
+  ctx.save(); arc(x,y,r*0.932); ctx.strokeStyle='rgba(0,180,255,0.08)'; ctx.lineWidth=r*0.015; ctx.stroke(); ctx.restore();
+  ctx.save(); arc(x,y,r); ctx.clip();
+  ctx.fillStyle=staticGrad.hl; arc(x-r*0.30,y-r*0.33,r*0.22); ctx.fill(); ctx.restore();
+  ctx.save(); arc(x,y,r); ctx.clip();
+  ctx.fillStyle=staticGrad.hl2; ctx.beginPath(); ctx.ellipse(x-r*0.15,y-r*0.50,r*0.10,r*0.04,-0.4,0,Math.PI*2); ctx.fill(); ctx.restore();
+  ctx.save(); arc(x,y,r); ctx.clip();
+  ctx.fillStyle=staticGrad.ref; arc(x+r*0.42,y+r*0.40,r*0.28); ctx.fill(); ctx.restore();
+}
+
+mainCanvas.addEventListener('click',function(e){
+  const rect=mainCanvas.getBoundingClientRect();
+  const sc=SIZE/rect.width;
+  const mx=(e.clientX-rect.left)*sc, my2=(e.clientY-rect.top)*sc;
+
+  // ── Phase 0 / 1 — Helix scene ─────────────────────────────────
+  if(phase===0||phase===1){
+    const sx=SIZE*0.06, ex=SIZE*0.94, my=CY*0.88;
+    const polX=sx+(ex-sx)*polProgress;
+    if(Math.hypot(mx-polX,my2-my)<SIZE*0.20){selectCard('pol1');return;}
+    if(my2>my+SIZE*0.03&&mx<polX-SIZE*0.04){selectCard('rrna');return;}
+    if(Math.abs(my2-my)<SIZE*0.14&&(mx<polX-SIZE*0.14||mx>polX+SIZE*0.12)){selectCard('rdna');return;}
+  }
+
+  // ── Phase 2 — Folded 45S rRNA ──────────────────────────────────
+  else if(phase===2){
+    selectCard('rrna'); return;
+  }
+
+  // ── Phase 3 — snoRNPs processing ──────────────────────────────
+  else if(phase===3){
+    selectCard('snornp'); return;
+  }
+
+  // ── Phase 4 — Cleavage fragments ──────────────────────────────
+  else if(phase===4){
+    // 18S goes left-centre, 28S goes right-centre, 5.8S bottom-centre
+    if(my2 > CY+SIZE*0.10){ selectCard('28s'); return; } // 5.8S is bottom — map to 28S card
+    if(mx < CX){ selectCard('18s'); return; }            // left half → 18S
+    selectCard('28s'); return;                            // right half → 28S
+  }
+
+  // ── Phase 5 — Subunit assembly ────────────────────────────────
+  else if(phase===5){
+    if(mx < CX){ selectCard('pre40s'); return; }
+    selectCard('pre60s'); return;
+  }
+
+  // ── Phase 6 — 5S docking + export ────────────────────────────
+  else if(phase===6){
+    if(mx < CX){ selectCard('export'); return; }         // left = pre-40S heading out
+    selectCard('5s'); return;                             // right = 5S docking into pre-60S
+  }
+
+  // ── Phase 7 — Nuclear export ──────────────────────────────────
+  else if(phase===7){
+    if(my2 < CY){ selectCard('npc'); return; }           // upper = nucleus/NPC
+    selectCard('cytoplasm'); return;                      // lower = cytoplasm side
+  }
+
+  // ── Phase 8 — Whole cell reveal ───────────────────────────────
+  else if(phase===8){
+    const _NF   = SIZE * 0.155;
+    const _ncx  = CX - SIZE*0.042, _ncy = CY - SIZE*0.018;
+    const _gCX  = _ncx + _NF*1.80,  _gCY = _ncy + _NF*1.05;
+    const _m0x  = _ncx - _NF*2.10,  _m0y = _ncy - _NF*1.10;
+    const _m1x  = _ncx - _NF*2.00,  _m1y = _ncy - _NF*0.35;
+    const dist  = (ax,ay,bx,by) => Math.hypot(ax-bx,ay-by);
+
+    let hit = null;
+    if(p8sub40 && dist(mx,my2,p8sub40.x,p8sub40.y) < _NF*0.42)       hit='pre40s';
+    else if(p8sub60 && dist(mx,my2,p8sub60.x,p8sub60.y) < _NF*0.42)  hit='pre60s';
+    else if(dist(mx,my2,_ncx,_ncy) < _NF*1.02)                        hit='nucleus';
+    else if(dist(mx,my2,_m0x,_m0y)<_NF*0.58||dist(mx,my2,_m1x,_m1y)<_NF*0.55) hit='mitochondria';
+    else if(dist(mx,my2,_gCX,_gCY) < _NF*0.92)                        hit='golgi';
+    else if(dist(mx,my2,_ncx,_ncy) < _NF*2.3 && mx > _ncx - _NF*0.6) hit='rer';
+    else if(mx < _ncx - _NF*0.8)                                       hit='ser';
+    else hit='cell';
+
+    if(hit && hit!=='cell'){ showOrganelleCard(hit, e.clientX, e.clientY); return; }
+    selectCard('cell'); return;
+  }
+
+  // ── Deselect ─────────────────────────────────────────────────
+  selected=null;
+  document.querySelectorAll('.info-card').forEach(c=>c.classList.remove('active'));
+  const [l1,l2]=narratives['none'];
+  const n1=document.getElementById('narr1'),n2=document.getElementById('narr2');
+  n1.style.opacity='0';n2.style.opacity='0';
+  setTimeout(()=>{n1.innerHTML=l1;n2.innerHTML=l2;n1.style.opacity='1';n2.style.opacity='1';},200);
+});
+
+// ── Folded 45S rRNA — organic node-network framework ──────────
+function drawFoldedRNA() {
+  const fp   = Math.min(foldProgress, 1);
+  const ease = fp<0.5 ? 2*fp*fp : -1+(4-2*fp)*fp;
+  const cx = CX, cy = CY + SIZE*0.018;
+
+  ctx.save();
+
+  // ── Collapse transition (fp 0→0.18) ──────────────────────────
+  if (fp < 0.18) {
+    const col = fp/0.18;
+    const sx=SIZE*0.10, ex=SIZE*0.82, my=CY*0.88;
+    ctx.globalAlpha = 1-col;
+    ctx.beginPath();
+    ctx.moveTo(sx+(cx-sx)*col, my+(cy-my)*col);
+    ctx.quadraticCurveTo(cx, my+(cy-my)*col*0.4,
+      ex+(cx-ex)*col, (my+SIZE*0.13)+(cy-(my+SIZE*0.13))*col);
+    ctx.strokeStyle='rgba(255,195,50,0.90)';
+    ctx.lineWidth=SIZE*0.016; ctx.lineCap='round'; ctx.stroke();
+    ctx.globalAlpha=1; ctx.restore(); return;
+  }
+
+  const bp = Math.min((fp-0.18)/0.82, 1);
+  const a  = ease * bp;
+
+  // ── Fixed anchor nodes — asymmetric, biologically inspired ───
+  // These are junction points where RNA strands meet.
+  // Deliberately off-centre and irregular.
+  const S = SIZE;
+  const nodes = [
+    // outer ring — irregular
+    {x:cx-S*0.175, y:cy-S*0.190, layer:0}, // 0 top-left
+    {x:cx+S*0.060, y:cy-S*0.215, layer:0}, // 1 top
+    {x:cx+S*0.195, y:cy-S*0.095, layer:0}, // 2 right-top
+    {x:cx+S*0.210, y:cy+S*0.080, layer:0}, // 3 right-bot
+    {x:cx+S*0.070, y:cy+S*0.200, layer:0}, // 4 bot-right
+    {x:cx-S*0.095, y:cy+S*0.195, layer:0}, // 5 bot
+    {x:cx-S*0.205, y:cy+S*0.065, layer:0}, // 6 left-bot
+    {x:cx-S*0.215, y:cy-S*0.070, layer:0}, // 7 left-top
+    // mid ring — shifted
+    {x:cx-S*0.090, y:cy-S*0.115, layer:1}, // 8
+    {x:cx+S*0.105, y:cy-S*0.100, layer:1}, // 9
+    {x:cx+S*0.115, y:cy+S*0.065, layer:1}, // 10
+    {x:cx+S*0.010, y:cy+S*0.125, layer:1}, // 11
+    {x:cx-S*0.110, y:cy+S*0.075, layer:1}, // 12
+    {x:cx-S*0.030, y:cy-S*0.050, layer:2}, // 13 inner
+    {x:cx+S*0.055, y:cy+S*0.015, layer:2}, // 14 inner
+  ];
+
+  // ── Edges — curved RNA strands between nodes ──────────────────
+  // Each edge: [nodeA, nodeB, delay, depth]
+  // depth 0 = back, 1 = front
+  const edges = [
+    // outer ring connections
+    [0,1,0.00,0],[1,2,0.04,0],[2,3,0.06,1],[3,4,0.08,0],
+    [4,5,0.10,1],[5,6,0.12,0],[6,7,0.14,1],[7,0,0.16,0],
+    // outer to mid spokes — irregular, not all same
+    [0,8,0.20,1],[1,9,0.22,0],[2,9,0.24,1],[3,10,0.26,0],
+    [4,11,0.28,1],[5,12,0.30,0],[6,12,0.32,1],[7,8,0.34,0],
+    // mid ring connections — only some, leaving cavities
+    [8,9,0.38,1],[9,10,0.40,0],[11,12,0.42,1],
+    // mid to inner
+    [8,13,0.46,0],[9,14,0.48,1],[10,14,0.50,0],
+    [11,13,0.52,1],[12,13,0.54,0],[13,14,0.56,1],
+    // long diagonal cross-strands — asymmetric
+    [0,12,0.60,0],[2,11,0.62,1],[3,13,0.64,0],[5,9,0.66,1],
+    [7,10,0.68,0],[1,12,0.70,1],
+  ];
+
+  // ── Draw back-layer edges first, then front ───────────────────
+  [0,1].forEach(depthPass => {
+    edges.forEach(([ai,bi,delay,depth]) => {
+      if (depth !== depthPass) return;
+      const tp = Math.max(0, Math.min((bp-delay)/(1-delay+0.001), 1));
+      if (tp <= 0) return;
+
+      const A = nodes[ai], B = nodes[bi];
+
+      // Control point — perpendicular offset for organic curve
+      const mx2 = (A.x+B.x)/2, my2 = (A.y+B.y)/2;
+      const dx = B.x-A.x, dy = B.y-A.y;
+      const len = Math.hypot(dx,dy);
+      // Alternating curve direction based on index sum
+      const sign = ((ai+bi)%2===0) ? 1 : -1;
+      const bend = len * 0.28 * sign;
+      const cpx = mx2 + (-dy/len)*bend;
+      const cpy = my2 + ( dx/len)*bend;
+
+      // Partial draw using t parameter
+      // Approximate partial bezier via point sampling
+      ctx.beginPath();
+      const steps = 20;
+      for (let s=0; s<=steps; s++) {
+        const t2 = (s/steps)*tp;
+        const bx = (1-t2)*(1-t2)*A.x + 2*(1-t2)*t2*cpx + t2*t2*B.x;
+        const by = (1-t2)*(1-t2)*A.y + 2*(1-t2)*t2*cpy + t2*t2*B.y;
+        s===0 ? ctx.moveTo(bx,by) : ctx.lineTo(bx,by);
+      }
+
+      // Depth — back strands noticeably dimmer, thinner, cooler
+      const depthA = depth===0 ? 0.30 : 0.92;
+      const lw     = depth===0 ? SIZE*0.006 : SIZE*0.012;
+      const glowA  = depth===0 ? 0.12 : 0.38;
+      const strandColor = depth===0
+        ? 'rgba(200,145,30,0.65)'   // back — darker, desaturated
+        : 'rgba(255,205,55,0.95)';  // front — bright warm gold
+
+      // Glow pass
+      ctx.save();
+      ctx.globalAlpha = a * glowA;
+      ctx.strokeStyle = depth===0 ? 'rgba(180,120,20,1)' : 'rgba(255,185,35,1)';
+      ctx.lineWidth   = lw * 2.6;
+      ctx.lineCap     = 'round';
+      ctx.stroke();
+
+      // Core strand
+      ctx.globalAlpha = a * depthA;
+      ctx.strokeStyle = strandColor;
+      ctx.lineWidth = lw;
+      ctx.stroke();
+      ctx.restore();
+    });
+  });
+
+  // ── Nodes — soft biological junction blooms ──────────────────
+  nodes.forEach((n,i) => {
+    const foundEdge = edges.find(e=>e[0]===i||e[1]===i);
+    const arrivalDelay = foundEdge ? foundEdge[2] : 0;
+    const np = Math.max(0, Math.min((bp-arrivalDelay)/0.15, 1));
+    if(np<=0) return;
+
+    const nr = SIZE*(n.layer===0?0.012:n.layer===1?0.009:0.007);
+
+    ctx.save();
+    ctx.globalAlpha = a * np;
+
+    // Soft multi-layer bloom — no hard circle edge
+    [4.5, 2.8, 1.4].forEach((mult, li) => {
+      const ga = [0.08, 0.16, 0.35][li];
+      const g = ctx.createRadialGradient(n.x,n.y,0,n.x,n.y,nr*mult);
+      g.addColorStop(0, `rgba(255,210,70,${ga})`);
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(n.x,n.y,nr*mult,0,Math.PI*2); ctx.fill();
+    });
+
+    ctx.restore();
+  });
+
+  // ── Cavity labels — "protein binding sites" ───────────────────
+  if(bp>0.72){
+    const pa=Math.min((bp-0.72)/0.20,1);
+    // Mark 3 obvious cavities
+    const cavities=[
+      {x:cx+S*0.00,  y:cy-S*0.135},
+      {x:cx+S*0.145, y:cy+S*0.005},
+      {x:cx-S*0.05,  y:cy+S*0.135},
+    ];
+    cavities.forEach(({x,y})=>{
+      ctx.save(); ctx.globalAlpha=a*pa*0.65;
+      ctx.beginPath(); ctx.arc(x,y,SIZE*0.025,0,Math.PI*2);
+      ctx.strokeStyle='rgba(150,200,255,0.50)';
+      ctx.lineWidth=SIZE*0.004;
+      ctx.setLineDash([SIZE*0.008,SIZE*0.006]);
+      ctx.stroke(); ctx.setLineDash([]);
+      ctx.restore();
+    });
+  }
+
+  // ── 45S label ─────────────────────────────────────────────────
+  if(bp>0.45){
+    const la=Math.min((bp-0.45)/0.25,1);
+    ctx.save(); ctx.globalAlpha=a*la;
+    ctx.shadowColor='rgba(3,5,10,0.96)'; ctx.shadowBlur=10;
+    ctx.textAlign='left';
+    ctx.font=`bold ${Math.round(S*0.040)}px Inter`;
+    ctx.fillStyle='rgba(255,228,95,0.98)';
+    ctx.fillText('45S pre-rRNA', cx-S*0.22, cy-S*0.282);
+    ctx.shadowBlur=7;
+    ctx.font=`600 ${Math.round(S*0.028)}px Inter`;
+    ctx.fillStyle='rgba(255,215,90,0.95)';
+    ctx.fillText('(precursor rRNA)', cx-S*0.22, cy-S*0.246);
+    ctx.restore();
+  }
+
+  ctx.restore();
+}
+
+// ── snoRNP globular blobs — sit ON the rRNA scaffold ─────────
+function drawSnoRNPs() {
+  const cx = CX, cy = CY + SIZE*0.02;
+  snoRNPs.forEach(p => {
+    if (p.progress < 1) p.progress = Math.min(p.progress + p.speed, 1);
+    else { p.dwellT++; }
+    const px = p.x + (p.tx - p.x) * p.progress;
+    const py = p.y + (p.ty - p.y) * p.progress;
+    const dA = p.dwellT > 100 ? Math.max(0, 1-(p.dwellT-100)/80) : 1;
+    const al = p.progress * dA;
+    if (al <= 0) return;
+    ctx.save(); ctx.globalAlpha = al;
+
+    // Outer glow
+    const gOut = ctx.createRadialGradient(px,py,0,px,py,p.r*3);
+    gOut.addColorStop(0,p.color+'55'); gOut.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=gOut; ctx.beginPath(); ctx.arc(px,py,p.r*3,0,Math.PI*2); ctx.fill();
+
+    // Globular body — 4 overlapping lobes like reference image
+    const lobes=[{dx:-0.3,dy:-0.3},{dx:0.3,dy:-0.2},{dx:-0.2,dy:0.3},{dx:0.3,dy:0.3},{dx:0,dy:0}];
+    lobes.forEach(({dx,dy})=>{
+      const lx=px+dx*p.r, ly=py+dy*p.r;
+      const lg=ctx.createRadialGradient(lx,ly,0,lx,ly,p.r*0.8);
+      lg.addColorStop(0,p.color+'cc'); lg.addColorStop(1,p.color+'00');
+      ctx.fillStyle=lg; ctx.beginPath(); ctx.arc(lx,ly,p.r*0.8,0,Math.PI*2); ctx.fill();
+    });
+    ctx.restore();
+  });
+
+  // Label — top right, small and secondary
+  const active = snoRNPs.filter(p=>p.progress>0.6&&p.dwellT<80);
+  if (active.length > 0) {
+    ctx.save(); ctx.globalAlpha=1.0;
+    ctx.shadowColor='rgba(0,0,0,1)'; ctx.shadowBlur=10;
+    ctx.font=`bold ${Math.round(SIZE*0.036)}px Inter`;
+    ctx.fillStyle='rgba(235,175,255,0.98)';
+    ctx.textAlign='center';
+    ctx.fillText('snoRNPs',cx+SIZE*0.25,cy-SIZE*0.26);
+    ctx.shadowBlur=7;
+    ctx.font=`600 ${Math.round(SIZE*0.026)}px Inter`;
+    ctx.fillStyle='rgba(205,155,250,0.92)';
+    ctx.fillText('(processing complexes)',cx+SIZE*0.25,cy-SIZE*0.228);
+    ctx.textAlign='left'; ctx.restore();
+  }
+}
+
+// ── Draw one rRNA fragment — folded helix cluster ─────────────
+function drawRNAFragment(x, y, r, color, loopCount, alpha) {
+  ctx.save(); ctx.globalAlpha = alpha;
+
+  // Outer glow
+  const gOut = ctx.createRadialGradient(x,y,0,x,y,r*1.8);
+  gOut.addColorStop(0,color+'44'); gOut.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=gOut; ctx.beginPath(); ctx.arc(x,y,r*1.8,0,Math.PI*2); ctx.fill();
+
+  // Central fill
+  const gCore = ctx.createRadialGradient(x-r*0.2,y-r*0.2,0,x,y,r);
+  gCore.addColorStop(0,color+'33'); gCore.addColorStop(1,color+'08');
+  ctx.fillStyle=gCore; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
+
+  // Outer ring
+  ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2);
+  ctx.strokeStyle=color+'cc'; ctx.lineWidth=SIZE*0.010; ctx.stroke();
+
+  // Inner rings — concentric folded structure
+  [0.60,0.35].forEach((fr,i)=>{
+    ctx.beginPath(); ctx.arc(x,y,r*fr,0,Math.PI*2);
+    ctx.strokeStyle=color+(i===0?'77':'44');
+    ctx.lineWidth=SIZE*0.007; ctx.stroke();
+  });
+
+  // Radiating RNA loops — like reference image helix arms
+  for(let i=0;i<loopCount;i++){
+    const angle=(Math.PI*2/loopCount)*i - Math.PI*0.3;
+    const lx=x+Math.cos(angle)*r*0.82;
+    const ly=y+Math.sin(angle)*r*0.82;
+    // Stem
+    ctx.beginPath(); ctx.moveTo(x+Math.cos(angle)*r*0.35, y+Math.sin(angle)*r*0.35);
+    ctx.lineTo(lx,ly);
+    ctx.strokeStyle=color+'88'; ctx.lineWidth=SIZE*0.008; ctx.stroke();
+    // Loop bud
+    ctx.beginPath(); ctx.arc(lx,ly,r*0.18,0,Math.PI*2);
+    ctx.strokeStyle=color+'99'; ctx.lineWidth=SIZE*0.007; ctx.stroke();
+    const gBud=ctx.createRadialGradient(lx,ly,0,lx,ly,r*0.18);
+    gBud.addColorStop(0,color+'33'); gBud.addColorStop(1,color+'00');
+    ctx.fillStyle=gBud; ctx.fill();
+  }
+
+  ctx.restore();
+}
+
+// ── Cleavage scene ────────────────────────────────────────────
+// Timeline (cp 0→1):
+//   ACT 1  0.00–0.22  45S folded network brightens (highlight)
+//   ACT 2  0.15–0.36  3 cut-point glows pulse onto the molecule
+//   ACT 3  0.28–0.52  ETS/ITS spacer connectors fade to nothing
+//   ACT 4  0.42–1.00  fragments separate: 18S cyan, 5.8S yellow, 28S orange
+function drawCleavage() {
+  const cp = Math.min(cleavageProgress, 1);
+  const cx = CX, cy = CY + SIZE*0.018;
+  const S  = SIZE;
+
+  // ── Shared node layout (matches drawFoldedRNA exactly) ───────
+  const nodes = [
+    {x:cx-S*0.175, y:cy-S*0.190},{x:cx+S*0.060, y:cy-S*0.215},
+    {x:cx+S*0.195, y:cy-S*0.095},{x:cx+S*0.210, y:cy+S*0.080},
+    {x:cx+S*0.070, y:cy+S*0.200},{x:cx-S*0.095, y:cy+S*0.195},
+    {x:cx-S*0.205, y:cy+S*0.065},{x:cx-S*0.215, y:cy-S*0.070},
+    {x:cx-S*0.090, y:cy-S*0.115},{x:cx+S*0.105, y:cy-S*0.100},
+    {x:cx+S*0.115, y:cy+S*0.065},{x:cx+S*0.010, y:cy+S*0.125},
+    {x:cx-S*0.110, y:cy+S*0.075},{x:cx-S*0.030, y:cy-S*0.050},
+    {x:cx+S*0.055, y:cy+S*0.015},
+  ];
+  const edges = [
+    [0,1,0],[1,2,0],[2,3,1],[3,4,0],[4,5,1],[5,6,0],[6,7,1],[7,0,0],
+    [0,8,1],[1,9,0],[2,9,1],[3,10,0],[4,11,1],[5,12,0],[6,12,1],[7,8,0],
+    [8,9,1],[9,10,0],[11,12,1],
+    [8,13,0],[9,14,1],[10,14,0],[11,13,1],[12,13,0],[13,14,1],
+    [0,12,0],[2,11,1],[3,13,0],[5,9,1],[7,10,0],[1,12,1],
+  ];
+
+  // Three cleavage sites in biologically plausible positions on the network:
+  //  site A (ETS/18S boundary) — upper-left zone  → node 8
+  //  site B (ITS1, 18S/5.8S)  — centre            → node 13
+  //  site C (ITS2, 5.8S/28S)  — right-centre      → node 10
+  const cutSites = [
+    { x: nodes[8].x,  y: nodes[8].y,  label:'A',  color:'#ff4466' },
+    { x: nodes[13].x, y: nodes[13].y, label:'B',  color:'#ff6622' },
+    { x: nodes[10].x, y: nodes[10].y, label:'C',  color:'#ff4466' },
+  ];
+
+  // Which edges are "spacers" (ETS/ITS connectors) — links that cross cut boundaries.
+  // These will fade before fragments separate.
+  // Spacer set: edges crossing between the three fragment zones.
+  // Fragment zones: 18S ← nodes {0,1,7,8}, 5.8S ← nodes {13,14,11}, 28S ← nodes {2,3,9,10}
+  // (simplified — outer-ring edges that bridge the cut zones)
+  const spacerEdgeIndices = new Set([
+    // Edges touching node 13 (ITS boundary) or node 10 (ITS2 boundary):
+    19,20,21,22,23,24,  // mid-to-inner edges through cut sites
+    18,                  // mid-ring 11-12
+    9, 10, 11,           // outer-to-mid crossing cuts
+    25,26,27,28,29,30,   // long diagonals
+  ]);
+
+  // ── ACT 1 — 45S highlight ────────────────────────────────────
+  const hlProgress = Math.min(cp / 0.22, 1);
+  const hlA = hlProgress; // 0→1 brightness ramp
+  // Fade the whole network out once fragments start separating (cp > 0.50)
+  const networkFade = cp < 0.50 ? 1 : Math.max(0, 1 - (cp - 0.50) / 0.18);
+  const globalNetA = hlA * networkFade;
+
+  if (globalNetA > 0) {
+    ctx.save();
+
+    // Wide ambient glow behind entire 45S
+    const aura = ctx.createRadialGradient(cx, cy, 0, cx, cy, S*0.30);
+    aura.addColorStop(0, `rgba(255,195,40,${0.10 * hlA * networkFade})`);
+    aura.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = aura;
+    ctx.beginPath(); ctx.arc(cx, cy, S*0.30, 0, Math.PI*2); ctx.fill();
+
+    // ACT 3: spacer fade alpha (1 → 0 as cp goes 0.28→0.52)
+    const spacerA = cp < 0.28 ? 1 : Math.max(0, 1 - (cp - 0.28) / 0.24);
+
+    // Draw edges — spacers dim separately
+    edges.forEach(([ai, bi, depth], idx) => {
+      const isSpacer = spacerEdgeIndices.has(idx);
+      const edgeAlpha = isSpacer ? spacerA : 1;
+      if (edgeAlpha <= 0) return;
+
+      const A = nodes[ai], B = nodes[bi];
+      const mx2 = (A.x+B.x)/2, my2 = (A.y+B.y)/2;
+      const dx = B.x-A.x, dy = B.y-A.y;
+      const len = Math.hypot(dx, dy);
+      const sign = ((ai+bi)%2===0) ? 1 : -1;
+      const bend = len * 0.28 * sign;
+      const cpx = mx2 + (-dy/len)*bend;
+      const cpy = my2 + ( dx/len)*bend;
+
+      ctx.beginPath();
+      const steps = 16;
+      for (let s=0; s<=steps; s++) {
+        const t = s/steps;
+        const bx = (1-t)*(1-t)*A.x + 2*(1-t)*t*cpx + t*t*B.x;
+        const by = (1-t)*(1-t)*A.y + 2*(1-t)*t*cpy + t*t*B.y;
+        s===0 ? ctx.moveTo(bx,by) : ctx.lineTo(bx,by);
+      }
+
+      // Spacers get a distinct dimmed grey-purple colour as they fade
+      let strandColor, glowColor, lw;
+      if (isSpacer) {
+        strandColor = `rgba(180,130,220,${0.75 * edgeAlpha})`;
+        glowColor   = `rgba(200,140,255,${0.25 * edgeAlpha})`;
+        lw = S*0.008;
+      } else {
+        // Non-spacer strands: warm gold, brightened in ACT 1
+        const brightness = 0.85 + 0.15 * hlA;
+        strandColor = depth===0
+          ? `rgba(200,145,30,${0.65 * brightness * globalNetA})`
+          : `rgba(255,205,55,${0.95 * brightness * globalNetA})`;
+        glowColor = depth===0
+          ? `rgba(180,120,20,${0.12 * brightness * globalNetA})`
+          : `rgba(255,185,35,${0.38 * brightness * globalNetA})`;
+        lw = depth===0 ? S*0.006 : S*0.012;
+      }
+
+      ctx.save();
+      // Glow
+      ctx.globalAlpha = edgeAlpha * globalNetA;
+      ctx.strokeStyle = glowColor;
+      ctx.lineWidth = lw * 2.6; ctx.lineCap = 'round'; ctx.stroke();
+      // Core
+      ctx.strokeStyle = strandColor;
+      ctx.lineWidth = lw; ctx.stroke();
+      ctx.restore();
+    });
+
+    // Nodes
+    nodes.forEach((n, i) => {
+      ctx.save();
+      ctx.globalAlpha = globalNetA;
+      const nr = S*(i<8 ? 0.012 : i<13 ? 0.009 : 0.007);
+      [4.5, 2.8, 1.4].forEach((mult, li) => {
+        const ga = [0.08,0.16,0.35][li] * (0.85 + 0.15*hlA);
+        const g = ctx.createRadialGradient(n.x,n.y,0,n.x,n.y,nr*mult);
+        g.addColorStop(0, `rgba(255,210,70,${ga})`);
+        g.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.arc(n.x,n.y,nr*mult,0,Math.PI*2); ctx.fill();
+      });
+      ctx.restore();
+    });
+
+    ctx.restore();
+  }
+
+  // ── ACT 2 — Cut-point glows (cp 0.15→0.36) ──────────────────
+  cutSites.forEach((site, i) => {
+    const delay = 0.15 + i * 0.04;
+    const cutP  = Math.max(0, Math.min((cp - delay) / 0.14, 1));
+    if (cutP <= 0) return;
+    // Flash bright, then settle to a persistent glow; fade out with network
+    const flashA = cutP < 0.3 ? cutP/0.3 : 1;
+    const cutFade = cp < 0.50 ? 1 : Math.max(0, 1 - (cp - 0.50) / 0.14);
+    const pulse = 1 + 0.20 * Math.sin(animT * 0.18 + i * 1.2);
+
+    ctx.save();
+    ctx.globalAlpha = flashA * cutFade;
+
+    // Outer halo
+    const r1 = S*0.045 * pulse;
+    const halo = ctx.createRadialGradient(site.x, site.y, 0, site.x, site.y, r1);
+    halo.addColorStop(0, `${site.color}88`);
+    halo.addColorStop(0.5, `${site.color}33`);
+    halo.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = halo;
+    ctx.beginPath(); ctx.arc(site.x, site.y, r1, 0, Math.PI*2); ctx.fill();
+
+    // Inner bright core
+    const r2 = S*0.014 * pulse;
+    const core = ctx.createRadialGradient(site.x, site.y, 0, site.x, site.y, r2);
+    core.addColorStop(0, '#ffffff');
+    core.addColorStop(0.4, site.color);
+    core.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = core;
+    ctx.beginPath(); ctx.arc(site.x, site.y, r2, 0, Math.PI*2); ctx.fill();
+
+    // Scissor tick marks — two short crossing lines
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = S*0.008;
+    ctx.globalAlpha = flashA * cutFade * 0.80;
+    const tk = S*0.018;
+    ctx.beginPath();
+    ctx.moveTo(site.x - tk, site.y - tk*0.5);
+    ctx.lineTo(site.x + tk, site.y + tk*0.5);
+    ctx.moveTo(site.x - tk, site.y + tk*0.5);
+    ctx.lineTo(site.x + tk, site.y - tk*0.5);
+    ctx.stroke();
+
+    ctx.restore();
+  });
+
+  // ── 45S label (fades before separation) ──────────────────────
+  if (cp < 0.48) {
+    const lA = Math.min(cp/0.10, 1) * Math.max(0, 1 - (cp-0.34)/0.14);
+    if (lA > 0) {
+      ctx.save(); ctx.globalAlpha = lA;
+      ctx.shadowColor='rgba(3,5,10,0.96)'; ctx.shadowBlur=9;
+      ctx.textAlign = 'left';
+      ctx.font = `bold ${Math.round(S*0.040)}px Inter`;
+      ctx.fillStyle = 'rgba(255,225,88,0.98)';
+      ctx.fillText('45S pre-rRNA', cx-S*0.22, cy-S*0.265);
+      ctx.shadowBlur=7;
+      ctx.font = `600 ${Math.round(S*0.028)}px Inter`;
+      ctx.fillStyle = 'rgba(255,215,85,0.95)';
+      ctx.fillText('(precursor rRNA)', cx-S*0.22, cy-S*0.233);
+      ctx.restore();
+    }
+  }
+
+  // ── ACT 3 — Spacer dust drifting away (cp 0.30→0.60) ────────
+  if (cp > 0.30) {
+    const dustIn  = Math.min((cp - 0.30) / 0.12, 1);
+    const dustOut = Math.max(0, 1 - (cp - 0.55) / 0.18);
+    const dustA   = dustIn * dustOut;
+    if (dustA > 0) {
+      ctx.save(); ctx.globalAlpha = dustA * 0.70;
+      for (let i=0; i<22; i++) {
+        const angle = ((i/22) * Math.PI*2);
+        const seed  = ((i*7)%10)/10;
+        const dist  = S*(0.06 + 0.22*seed);
+        const drift = (cp - 0.30) * S * 0.30; // drift radially outward
+        const px2 = cx + Math.cos(angle)*dist + Math.cos(angle)*drift*0.6*(0.5+seed*0.5);
+        const py2 = cy + Math.sin(angle)*dist + Math.sin(angle)*drift*0.6*(0.5+seed*0.5);
+        const pr2 = S*(0.005 + 0.007*seed);
+        ctx.beginPath(); ctx.arc(px2, py2, pr2, 0, Math.PI*2);
+        ctx.fillStyle = `rgba(${160+i*3},${90+i*4},255,0.75)`; ctx.fill();
+      }
+      if (dustA > 0.35) {
+        ctx.shadowColor='rgba(3,5,10,0.92)'; ctx.shadowBlur=6;
+        ctx.font = `${Math.round(S*0.025)}px Inter`;
+        ctx.fillStyle = 'rgba(190,150,255,0.80)';
+        ctx.textAlign = 'center';
+        ctx.fillText('spacer sequences', cx, cy + S*0.34);
+        ctx.fillText('(removed during processing)', cx, cy + S*0.365);
+        ctx.textAlign = 'left';
+      }
+      ctx.restore();
+    }
+  }
+
+  // ── ACT 4 — Fragments separate (cp 0.42→1.00) ────────────────
+  // 18S cyan, 5.8S yellow, 28S orange
+  const fragDefs = [
+    { tx:cx-S*0.195, ty:cy-S*0.105, color:'#00d8ff', label:'18S rRNA', sub:'→ 40S subunit', r:S*0.088, loops:6,  delay:0.42 },
+    { tx:cx+S*0.000, ty:cy+S*0.195, color:'#ffd740', label:'5.8S rRNA', sub:'→ 60S subunit', r:S*0.044, loops:3,  delay:0.48 },
+    { tx:cx+S*0.205, ty:cy-S*0.095, color:'#ff8c00', label:'28S rRNA', sub:'→ 60S subunit', r:S*0.108, loops:8,  delay:0.44 },
+  ];
+
+  fragDefs.forEach((f, i) => {
+    const raw = Math.max(0, Math.min((cp - f.delay) / (1 - f.delay), 1));
+    const fe  = raw<0.5 ? 2*raw*raw : -1+(4-2*raw)*raw; // ease in-out
+    if (fe <= 0) return;
+
+    // Fragments start at cut-site location and move to final position
+    // Origin point: cut sites A=0→18S, C=2→28S, B=1→5.8S
+    const originMap = [0, 1, 2]; // frag index → cutSite index
+    const origin = cutSites[originMap[i]];
+    const x = origin.x + (f.tx - origin.x) * fe;
+    const y = origin.y + (f.ty - origin.y) * fe;
+
+    const fragA = Math.min(fe * 2.5, 1);
+    drawRNAFragment(x, y, f.r * Math.min(fe * 1.4, 1), f.color, f.loops, fragA);
+
+    // Labels — appear once fragment has mostly arrived
+    if (fe > 0.55) {
+      const lA = Math.min((fe - 0.55) / 0.25, 1);
+      ctx.save(); ctx.globalAlpha = lA;
+      ctx.textAlign = 'center';
+      ctx.shadowColor = 'rgba(0,0,0,1)'; ctx.shadowBlur = 10;
+      ctx.font = `bold ${Math.round(S*0.036)}px Inter`;
+      ctx.fillStyle = f.color;
+      ctx.fillText(f.label, x, y - f.r * Math.min(fe*1.4,1) - S*0.042);
+      ctx.shadowBlur = 7;
+      ctx.font = `600 ${Math.round(S*0.028)}px Inter`;
+      ctx.fillStyle = 'rgba(220,238,255,0.95)';
+      ctx.fillText(f.sub, x, y - f.r * Math.min(fe*1.4,1) - S*0.010);
+      ctx.textAlign = 'left'; ctx.restore();
+    }
+  });
+
+}
+
+// ── Assembly scene — ribosomal proteins arrive, subunits form ─
+function drawAssembly() {
+  const ap = Math.min(assemblyProgress, 1);
+  const S  = SIZE;
+  const LX = CX * 0.52;   // 40S centre x  (left half)
+  const RX = CX * 1.48;   // 60S centre x  (right half)
+  const MY = CY;
+
+  // ── Dividing line ─────────────────────────────────────────────
+  {
+    const la = Math.min(ap/0.10, 1);
+    ctx.save(); ctx.globalAlpha = la*0.18;
+    ctx.beginPath(); ctx.moveTo(CX, S*0.12); ctx.lineTo(CX, S*0.94);
+    ctx.strokeStyle='rgba(100,180,255,1)'; ctx.lineWidth=S*0.003;
+    ctx.setLineDash([S*0.010, S*0.008]); ctx.stroke(); ctx.setLineDash([]);
+    ctx.restore();
+  }
+
+  // ────────────────────────────────────────────────────────────
+  // LEFT SIDE — 18S + r-proteins → pre-40S
+  // ────────────────────────────────────────────────────────────
+  const s18A = Math.min(ap/0.16, 1); // 18S rRNA appears immediately
+
+  // 18S rRNA scaffold (cyan node-network, compact, left)
+  if (s18A > 0) {
+    ctx.save(); ctx.globalAlpha = s18A;
+    draw18SScaffold(LX, MY + S*0.02, ap);
+    ctx.restore();
+  }
+
+  // Assembly equation for small subunit
+  drawAssemblyEquation(LX, MY, ap, 'small');
+
+  // Ribosomal proteins flying in to 40S
+  rProteins40.forEach(p => {
+    if (ap >= p.delay) {
+      p.progress = Math.min(p.progress + p.speed, 1);
+    }
+    if (p.progress <= 0) return;
+    const ease = p.progress<0.5 ? 2*p.progress*p.progress : -1+(4-2*p.progress)*p.progress;
+    const x = p.sx + (p.tx-p.sx)*ease;
+    const y = p.sy + (p.ty-p.sy)*ease;
+    drawRibosomalProtein(x, y, p.r, p.hue, Math.min(p.progress*2.5,1));
+  });
+
+  // pre-40S label — clean, appears once mostly assembled
+  if (ap > 0.65) {
+    const la = Math.min((ap-0.65)/0.20, 1);
+    ctx.save(); ctx.globalAlpha = la; ctx.textAlign='center';
+    ctx.shadowColor='rgba(0,0,0,1)'; ctx.shadowBlur=12;
+    ctx.font=`bold ${Math.round(S*0.046)}px Inter`;
+    ctx.fillStyle='#00d8ff';
+    ctx.fillText('Pre-40S', LX, MY + S*0.248);
+    ctx.shadowBlur=8;
+    ctx.font=`600 ${Math.round(S*0.030)}px Inter`;
+    ctx.fillStyle='rgba(0,220,255,0.95)';
+    ctx.fillText('small subunit', LX, MY + S*0.282);
+    ctx.textAlign='left'; ctx.restore();
+  }
+
+  // ────────────────────────────────────────────────────────────
+  // RIGHT SIDE — 28S + 5.8S + 5S (Pol III) + r-proteins → pre-60S
+  // ────────────────────────────────────────────────────────────
+  const s28A = Math.min(ap/0.16, 1);
+
+  if (s28A > 0) {
+    ctx.save(); ctx.globalAlpha = s28A;
+    draw28SScaffold(RX, MY + S*0.02, ap);
+    ctx.restore();
+  }
+
+  // Assembly equation for large subunit
+  drawAssemblyEquation(RX, MY, ap, 'large');
+
+  // 5S rRNA — enters separately from upper-right, labeled Pol III
+  draw5SEntry(RX, MY, ap);
+
+  // Ribosomal proteins flying in to 60S
+  rProteins60.forEach(p => {
+    if (ap >= p.delay) {
+      p.progress = Math.min(p.progress + p.speed, 1);
+    }
+    if (p.progress <= 0) return;
+    const ease = p.progress<0.5 ? 2*p.progress*p.progress : -1+(4-2*p.progress)*p.progress;
+    const x = p.sx + (p.tx-p.sx)*ease;
+    const y = p.sy + (p.ty-p.sy)*ease;
+    drawRibosomalProtein(x, y, p.r, p.hue, Math.min(p.progress*2.5,1));
+  });
+
+  // pre-60S label — clean
+  if (ap > 0.70) {
+    const la = Math.min((ap-0.70)/0.20, 1);
+    ctx.save(); ctx.globalAlpha = la; ctx.textAlign='center';
+    ctx.shadowColor='rgba(0,0,0,1)'; ctx.shadowBlur=12;
+    ctx.font=`bold ${Math.round(S*0.046)}px Inter`;
+    ctx.fillStyle='#ff8c00';
+    ctx.fillText('Pre-60S', RX, MY + S*0.248);
+    ctx.shadowBlur=8;
+    ctx.font=`600 ${Math.round(S*0.030)}px Inter`;
+    ctx.fillStyle='rgba(255,160,40,0.95)';
+    ctx.fillText('large subunit', RX, MY + S*0.282);
+    ctx.textAlign='left'; ctx.restore();
+  }
+}
+
+// ── 18S rRNA scaffold — compact cyan network (left) ──────────
+function draw18SScaffold(cx, cy, ap) {
+  const S = SIZE;
+  // Small, rounded node network representing folded 18S
+  const r = S*0.130; // overall radius of 40S rRNA core
+  // Nodes arranged in a squashed kidney shape (small subunit)
+  const nodes18 = [
+    {x:cx-r*0.55, y:cy-r*0.30}, {x:cx-r*0.15, y:cy-r*0.62},
+    {x:cx+r*0.30, y:cy-r*0.50}, {x:cx+r*0.60, y:cy-r*0.10},
+    {x:cx+r*0.50, y:cy+r*0.38}, {x:cx+r*0.05, y:cy+r*0.62},
+    {x:cx-r*0.40, y:cy+r*0.50}, {x:cx-r*0.62, y:cy+r*0.12},
+    {x:cx-r*0.10, y:cy-r*0.18}, {x:cx+r*0.20, y:cy+r*0.10},
+    {x:cx-r*0.28, y:cy+r*0.20},
+  ];
+  const edges18 = [
+    [0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,7],[7,0],
+    [0,8],[2,8],[3,9],[5,9],[6,10],[7,10],[8,9],[9,10],[8,10],
+  ];
+
+  // Proteins already bound add a colouring tint — more proteins = warmer core
+  const proteinFrac = Math.min(Math.max(0,(ap-0.12)/0.60),1);
+
+  edges18.forEach(([ai,bi], idx) => {
+    const A=nodes18[ai], B=nodes18[bi];
+    const mx=(A.x+B.x)/2, my=(A.y+B.y)/2;
+    const dx=B.x-A.x, dy=B.y-A.y, len=Math.hypot(dx,dy);
+    const sign=((ai+bi)%2)===0?1:-1;
+    const bend=len*0.24*sign;
+    const cpx=mx+(-dy/len)*bend, cpy=my+(dx/len)*bend;
+    ctx.beginPath();
+    const st=16;
+    for(let s=0;s<=st;s++){
+      const t=s/st;
+      const bx=(1-t)*(1-t)*A.x+2*(1-t)*t*cpx+t*t*B.x;
+      const by=(1-t)*(1-t)*A.y+2*(1-t)*t*cpy+t*t*B.y;
+      s===0?ctx.moveTo(bx,by):ctx.lineTo(bx,by);
+    }
+    // Cyan, brightening as proteins arrive
+    const br = 0.70 + 0.30*proteinFrac;
+    ctx.save();
+    ctx.strokeStyle=`rgba(0,${Math.round(195*br)},${Math.round(255*br)},0.85)`;
+    ctx.lineWidth=S*0.009; ctx.lineCap='round'; ctx.stroke();
+    ctx.strokeStyle=`rgba(0,220,255,0.22)`;
+    ctx.lineWidth=S*0.022; ctx.stroke();
+    ctx.restore();
+  });
+  nodes18.forEach(n=>{
+    ctx.save();
+    const g=ctx.createRadialGradient(n.x,n.y,0,n.x,n.y,S*0.016);
+    g.addColorStop(0,'rgba(0,230,255,0.55)'); g.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(n.x,n.y,S*0.016,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+  });
+
+}
+
+// ── 28S + 5.8S scaffold — orange network (right) ─────────────
+function draw28SScaffold(cx, cy, ap) {
+  const S = SIZE;
+  const r = S*0.165; // larger — 60S is bigger
+  // Domed / arch shape (large subunit top)
+  const nodes28 = [
+    {x:cx-r*0.65, y:cy-r*0.18}, {x:cx-r*0.42, y:cy-r*0.58},
+    {x:cx-r*0.05, y:cy-r*0.72}, {x:cx+r*0.36, y:cy-r*0.62},
+    {x:cx+r*0.65, y:cy-r*0.22}, {x:cx+r*0.60, y:cy+r*0.28},
+    {x:cx+r*0.20, y:cy+r*0.58}, {x:cx-r*0.22, y:cy+r*0.62},
+    {x:cx-r*0.58, y:cy+r*0.30},
+    // Inner nodes
+    {x:cx-r*0.22, y:cy-r*0.28}, {x:cx+r*0.20, y:cy-r*0.22},
+    {x:cx+r*0.18, y:cy+r*0.20}, {x:cx-r*0.20, y:cy+r*0.18},
+    {x:cx+r*0.00, y:cy+r*0.00},
+  ];
+  const edges28 = [
+    [0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,7],[7,8],[8,0],
+    [0,9],[1,9],[2,9],[2,10],[3,10],[4,10],[4,11],[5,11],[6,11],
+    [6,12],[7,12],[8,12],[9,13],[10,13],[11,13],[12,13],
+    [9,10],[10,11],[11,12],[9,12],
+  ];
+
+  const proteinFrac = Math.min(Math.max(0,(ap-0.12)/0.65),1);
+
+  edges28.forEach(([ai,bi]) => {
+    const A=nodes28[ai], B=nodes28[bi];
+    const mx=(A.x+B.x)/2, my=(A.y+B.y)/2;
+    const dx=B.x-A.x, dy=B.y-A.y, len=Math.hypot(dx,dy);
+    const sign=((ai+bi)%2)===0?1:-1;
+    const bend=len*0.22*sign;
+    const cpx=mx+(-dy/len)*bend, cpy=my+(dx/len)*bend;
+    ctx.beginPath();
+    const st=16;
+    for(let s=0;s<=st;s++){
+      const t=s/st;
+      const bx=(1-t)*(1-t)*A.x+2*(1-t)*t*cpx+t*t*B.x;
+      const by=(1-t)*(1-t)*A.y+2*(1-t)*t*cpy+t*t*B.y;
+      s===0?ctx.moveTo(bx,by):ctx.lineTo(bx,by);
+    }
+    const br = 0.70 + 0.30*proteinFrac;
+    ctx.save();
+    ctx.strokeStyle=`rgba(255,${Math.round(120*br)},0,0.85)`;
+    ctx.lineWidth=S*0.009; ctx.lineCap='round'; ctx.stroke();
+    ctx.strokeStyle=`rgba(255,140,0,0.20)`;
+    ctx.lineWidth=S*0.024; ctx.stroke();
+    ctx.restore();
+  });
+  nodes28.forEach(n=>{
+    ctx.save();
+    const g=ctx.createRadialGradient(n.x,n.y,0,n.x,n.y,S*0.016);
+    g.addColorStop(0,'rgba(255,160,30,0.55)'); g.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(n.x,n.y,S*0.016,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+  });
+
+}
+
+// ── 5S rRNA enters from outside (RNA Pol III product) ─────────
+function draw5SEntry(rx, my, ap) {
+  const S = SIZE;
+  // 5S enters from upper-right corner, arrives at right-side cluster
+  const startDelay = 0.18;
+  if (ap < startDelay) return;
+  const raw = Math.min((ap - startDelay) / 0.28, 1);
+  const ease = raw<0.5 ? 2*raw*raw : -1+(4-2*raw)*raw;
+
+  // Start: upper-right of canvas. End: docks to upper portion of 28S scaffold
+  const ex = rx + SIZE*0.08, ey = my - SIZE*0.255; // final dock position
+  const sx5 = CX*1.92, sy5 = CY*0.28;               // entry from upper-right corner
+  const x = sx5 + (ex-sx5)*ease;
+  const y = sy5 + (ey-sy5)*ease;
+
+  const al = Math.min(raw*3, 1);
+
+  ctx.save(); ctx.globalAlpha = al;
+
+  // Glow trail behind 5S while moving
+  if (raw < 0.92) {
+    const trailLen = 5;
+    for (let ti=1; ti<=trailLen; ti++) {
+      const tr = Math.max(0, raw - ti*0.028);
+      const te = tr<0.5 ? 2*tr*tr : -1+(4-2*tr)*tr;
+      const tx5 = sx5+(ex-sx5)*te, ty5 = sy5+(ey-sy5)*te;
+      ctx.beginPath(); ctx.arc(tx5, ty5, S*0.014*(1-ti/trailLen), 0, Math.PI*2);
+      ctx.fillStyle=`rgba(180,255,130,${0.18*(1-ti/trailLen)})`; ctx.fill();
+    }
+  }
+
+  // 5S body — small lime-green sphere
+  const g5 = ctx.createRadialGradient(x-S*0.008, y-S*0.008, 0, x, y, S*0.030);
+  g5.addColorStop(0,'rgba(200,255,150,0.95)');
+  g5.addColorStop(0.5,'rgba(140,220,80,0.70)');
+  g5.addColorStop(1,'rgba(80,180,30,0)');
+  ctx.fillStyle=g5; ctx.beginPath(); ctx.arc(x,y,S*0.030,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(x,y,S*0.016,0,Math.PI*2);
+  ctx.fillStyle='rgba(200,255,140,0.90)'; ctx.fill();
+
+  // Label follows the sphere — small, unobtrusive tag only
+  if (raw > 0.08 && raw < 0.88) {
+    const lA = Math.min((raw-0.08)/0.15, 1) * Math.max(0, 1-(raw-0.72)/0.16);
+    ctx.globalAlpha = al * lA;
+    ctx.shadowColor='rgba(0,0,0,1)'; ctx.shadowBlur=8;
+    ctx.textAlign='center';
+    ctx.font=`bold ${Math.round(S*0.030)}px Inter`;
+    ctx.fillStyle='#b8ff80';
+    ctx.fillText('5S rRNA', x, y - S*0.040);
+    ctx.textAlign='left';
+  }
+
+  ctx.restore();
+}
+
+// ── One glowing ribosomal protein sphere ─────────────────────
+function drawRibosomalProtein(x, y, r, hue, alpha) {
+  const S = SIZE;
+  ctx.save(); ctx.globalAlpha = alpha;
+
+  // Outer glow
+  const gOut = ctx.createRadialGradient(x,y,0,x,y,r*3.2);
+  gOut.addColorStop(0,`hsla(${hue},90%,70%,0.28)`);
+  gOut.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=gOut; ctx.beginPath(); ctx.arc(x,y,r*3.2,0,Math.PI*2); ctx.fill();
+
+  // Mid halo
+  const gMid = ctx.createRadialGradient(x,y,0,x,y,r*1.6);
+  gMid.addColorStop(0,`hsla(${hue},95%,80%,0.55)`);
+  gMid.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=gMid; ctx.beginPath(); ctx.arc(x,y,r*1.6,0,Math.PI*2); ctx.fill();
+
+  // Core sphere with specular highlight
+  const gCore = ctx.createRadialGradient(x-r*0.32,y-r*0.32,0,x,y,r);
+  gCore.addColorStop(0,`hsla(${hue},80%,92%,1.0)`);
+  gCore.addColorStop(0.45,`hsla(${hue},85%,62%,0.95)`);
+  gCore.addColorStop(1,`hsla(${hue},70%,35%,0.60)`);
+  ctx.fillStyle=gCore; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
+
+  ctx.restore();
+}
+
+// ── Equation text for each side ───────────────────────────────
+function drawAssemblyEquation(cx, my, ap, side) {
+  const S = SIZE;
+  // Show equation above the subunit, fades before "pre-XX" label appears
+  const showUntil = side==='small' ? 0.68 : 0.72;
+  const eA = Math.min(ap/0.14,1) * Math.max(0, 1-(ap-showUntil)/0.12);
+  if (eA <= 0) return;
+
+  ctx.save(); ctx.globalAlpha = eA;
+  ctx.textAlign='center';
+  ctx.shadowColor='rgba(0,0,0,0.98)'; ctx.shadowBlur=10;
+  const lineH = S*0.038;
+  const top = my - S*0.290;
+
+  const lines = side==='small'
+    ? ['18S rRNA', '+', 'ribosomal proteins', '↓', 'Pre-40S subunit']
+    : ['28S + 5.8S + 5S rRNA', '+', 'ribosomal proteins', '↓', 'Pre-60S subunit'];
+
+  lines.forEach((line, i) => {
+    const isArrow  = line==='↓';
+    const isResult = line.startsWith('Pre-');
+    const isPlus   = line==='+';
+    ctx.font = isArrow
+      ? `${Math.round(S*0.042)}px Inter`
+      : isResult
+        ? `bold ${Math.round(S*0.033)}px Inter`
+        : isPlus
+          ? `${Math.round(S*0.030)}px Inter`
+          : `600 ${Math.round(S*0.030)}px Inter`;
+    ctx.fillStyle = isResult
+      ? (side==='small' ? '#00d8ff' : '#ff8c00')
+      : isArrow
+        ? 'rgba(220,235,255,0.90)'
+        : isPlus
+          ? 'rgba(200,225,255,0.80)'
+          : 'rgba(230,245,255,0.95)';
+    ctx.fillText(line, cx, top + i*lineH);
+  });
+
+  ctx.textAlign='left'; ctx.restore();
+}
+
+// ── Narrative updater ─────────────────────────────────────────
+function updateNarrativeForPhase(p) {
+  updateCardsForPhase(p);
+  const n1=document.getElementById('narr1'), n2=document.getElementById('narr2');
+  const msgs = {
+    0: ['<strong>RNA Polymerase I</strong> binds to rDNA in the nucleolus and unwinds the double helix to begin transcription.','It synthesises a long <strong>pre-rRNA</strong> transcript, which will be processed into the rRNAs that form the core of ribosomes.'],
+    2: ['The newly synthesised <strong>45S pre-rRNA</strong> is released from RNA Pol I and remains in the nucleolus.','It begins folding into a complex three-dimensional structure — the first step toward ribosome formation.'],
+    3: ['<strong>snoRNPs</strong> bind the 45S pre-rRNA and guide <strong>chemical modifications</strong> of specific nucleotides.','These modifications help the pre-rRNA fold correctly and are essential for assembling functional ribosomes.'],
+    4: ['The 45S pre-rRNA is <strong>cleaved</strong> at specific sites by nucleases inside the nucleolus.','Spacer sequences are removed. Three mature rRNAs emerge: <strong>18S</strong>, <strong>5.8S</strong>, and <strong>28S rRNA</strong>.'],
+    5: ['Ribosomal proteins enter the nucleus and assemble onto the rRNA scaffold.','Together they form the <strong>pre-40S</strong> (small) and <strong>pre-60S</strong> (large) ribosomal subunits.'],
+    6: ['The <strong>5S rRNA</strong> (made separately by RNA Pol III) is incorporated into the pre-60S, completing the large subunit.','Both subunits are now ready for export to the cytoplasm through nuclear pore complexes.'],
+    7: ['The <strong>pre-40S</strong> and <strong>pre-60S</strong> subunits are exported individually through <strong>nuclear pore complexes</strong>.','In the cytoplasm, they complete their final maturation and join to form a functional <strong>80S ribosome</strong>.'],
+    8: ['The exported subunits drift through the <strong>cytoplasm</strong> by Brownian motion — free to encounter mRNA and translation factors.','The next step is <strong>Translation</strong>: both subunits join onto an mRNA to synthesise a protein.'],
+  };
+  const [l1,l2] = msgs[p] || msgs[0];
+  n1.style.opacity='0'; n2.style.opacity='0';
+  setTimeout(()=>{ n1.innerHTML=l1; n2.innerHTML=l2; n1.style.opacity='1'; n2.style.opacity='1'; },200);
+}
+
+function render(){
+  animT++;
+  phaseT += speedMultiplier;
+
+    if (phase === 0) {
+      polProgress += POL_SPEED * speedMultiplier;
+      if (polProgress > 0.82) { phase=1; phaseT=0; }
+    }
+    else if (phase === 1) {
+      detachAlpha = Math.max(0, 1 - phaseT/60);
+      if (phaseT > 80) { phase=2; phaseT=0; foldProgress=0; updateNarrativeForPhase(2); }
+    }
+    else if (phase === 2) {
+      foldProgress += 0.004 * speedMultiplier;
+      if (foldProgress >= 1 && phaseT > 200) {
+        phase=3; phaseT=0;
+        initSnoRNPs(CX, CY+SIZE*0.05, SIZE*0.3);
+        updateNarrativeForPhase(3);
+      }
+    }
+    else if (phase === 3) {
+      if (phaseT > 320) {
+        phase=4; phaseT=0;
+        cleavageProgress=0;
+        initFragments();
+        updateNarrativeForPhase(4);
+      }
+    }
+    else if (phase === 4) {
+      cleavageProgress += 0.003 * speedMultiplier;
+      if (cleavageProgress > 1.4) {
+        phase=5; phaseT=0;
+        assemblyProgress=0;
+        initAssembly();
+        updateNarrativeForPhase(5);
+      }
+    }
+    else if (phase === 5) {
+      assemblyProgress += 0.0016 * speedMultiplier;
+      if (assemblyProgress > 1.5) {
+        phase=6; phaseT=0;
+        dockingProgress=0; glowProgress=0; exportProgress=0; glowActive=false;
+        updateNarrativeForPhase(6);
+      }
+    }
+    else if (phase === 6) {
+      dockingProgress = Math.min(dockingProgress + 0.020 * speedMultiplier, 1);
+      if (dockingProgress >= 0.80 && !glowActive) { glowActive = true; }
+      if (glowActive) glowProgress = Math.min(glowProgress + 0.018 * speedMultiplier, 1);
+      if (glowProgress >= 0.70) exportProgress = Math.min(exportProgress + 0.010 * speedMultiplier, 1);
+      if (glowProgress >= 1.0 && phaseT > 160) {
+        phase=7; phaseT=0; exportPhaseT=0; npcExportProgress=0;
+        updateNarrativeForPhase(7);
+      }
+    }
+    else if (phase === 7) {
+      exportPhaseT++;
+      npcExportProgress = Math.min(npcExportProgress + 0.004 * speedMultiplier, 1);
+      if (npcExportProgress >= 1.0 && phaseT > 280) {
+        phase=8; phaseT=0;
+        initPhase8();
+        updateNarrativeForPhase(8);
+      }
+    }
+    else if (phase === 8) {
+      phase8Progress = Math.min(phase8Progress + 0.0022 * speedMultiplier, 1);
+      if (phase8Progress > 0.52) { updateBrownianSub(p8sub40); updateBrownianSub(p8sub60); }
+      // Phase 8 holds permanently — full cell view stays on screen
+    }
+
+  ctx.clearRect(0,0,SIZE,SIZE);
+  ctx.save(); arc(CX,CY,SIZE*0.47); ctx.clip();
+  drawDishBG();
+
+  if (phase === 0 || phase === 1) {
+    drawRNA(selected==='rrna');
+    drawHelix(selected==='rdna');
+    if (detachAlpha > 0) {
+      ctx.globalAlpha = detachAlpha;
+      drawPolI(selected==='pol1');
+      ctx.globalAlpha = 1;
+    }
+    drawLabels();
+  }
+  else if (phase === 2) {
+    ctx.globalAlpha = 0.18; drawHelix(false); ctx.globalAlpha = 1;
+    drawFoldedRNA();
+  }
+  else if (phase === 3) {
+    ctx.globalAlpha = 0.18; drawHelix(false); ctx.globalAlpha = 1;
+    drawFoldedRNA();
+    drawSnoRNPs();
+  }
+  else if (phase === 4) {
+    drawCleavage();
+  }
+  else if (phase === 5) {
+    drawAssembly();
+  }
+  else if (phase === 6) {
+    drawDockingAndExport();
+  }
+
+  ctx.restore();   // end dish clip
+  drawGlass();
+
+  if (phase === 7) {
+    drawNuclearExport();  // full-canvas, no clip
+  }
+  if (phase === 8) {
+    drawWholeCell();      // full-canvas, no clip
+  }
+
+  requestAnimationFrame(render);
+}
+
+// ── Phase 6: 5S rRNA docking into pre-60S groove + nuclear export ──
+function drawDockingAndExport() {
+  const S  = SIZE;
+  const dp = dockingProgress;   // 0..1 — docking approach
+  const gp = glowProgress;      // 0..1 — cyan-gold glow ripple
+  const ep = exportProgress;    // 0..1 — subunits drift to envelope
+
+  // Subunit centres — must exactly match assembly scene
+  const LX = CX * 0.52;
+  const RX = CX * 1.48;
+  const MY = CY;
+
+  // ── Easing helpers ────────────────────────────────────────────
+  const ease = t => t < 0.5 ? 2*t*t : -1+(4-2*t)*t;
+
+  // Export drift — subunits glide downward together
+  const driftY    = ep > 0 ? SIZE * 0.28 * ease(Math.min(ep, 1)) : 0;
+  const fadeAlpha = ep > 0.70 ? Math.max(0, 1 - (ep - 0.70) / 0.30) : 1;
+
+  // ── 5S docking groove — sits on the UPPER-LEFT node of the 28S scaffold ──
+  // draw28SScaffold uses r = S*0.165; node[2] = {cx-r*0.05, cy-r*0.72}
+  // which at (RX, MY+S*0.02) gives:
+  const r60    = S * 0.165;
+  const grooveX = RX - r60 * 0.05;
+  const grooveY = (MY + S*0.02) - r60 * 0.72;
+
+  // 5S starts from where draw5SEntry left it at ap=1 (raw=1 → ease=1):
+  // ex = RX + SIZE*0.08, ey = MY - SIZE*0.255  (from draw5SEntry)
+  // But in phase 6 we want it to come from slightly above-right of the groove
+  const s5StartX = grooveX + S * 0.18;
+  const s5StartY = grooveY - S * 0.14;
+  const dockE    = ease(dp);
+  const cur5Sx   = s5StartX + (grooveX - s5StartX) * dockE;
+  const cur5Sy   = s5StartY + (grooveY - s5StartY) * dockE;
+
+  // ── Divider ───────────────────────────────────────────────────
+  {
+    ctx.save(); ctx.globalAlpha = 0.14 * fadeAlpha;
+    ctx.beginPath(); ctx.moveTo(CX, S*0.11); ctx.lineTo(CX, S*0.92);
+    ctx.strokeStyle = 'rgba(100,180,255,1)'; ctx.lineWidth = S*0.003;
+    ctx.setLineDash([S*0.010, S*0.008]); ctx.stroke(); ctx.setLineDash([]);
+    ctx.restore();
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // Everything below translates by driftY during export
+  // ─────────────────────────────────────────────────────────────
+  ctx.save();
+  ctx.translate(0, driftY);
+  ctx.globalAlpha = fadeAlpha;
+
+  // ── LEFT — pre-40S (fully assembled, static) ──────────────────
+  draw18SScaffold(LX, MY + S*0.02, 1.5);
+  drawSubunitProteinCloud(LX, MY, 22, 195, 1);
+
+  // pre-40S label
+  {
+    const la = Math.min(dp / 0.25, 1);
+    ctx.save(); ctx.globalAlpha = fadeAlpha * la; ctx.textAlign = 'center';
+    ctx.shadowColor='rgba(0,0,0,1)'; ctx.shadowBlur=12;
+    ctx.font = `bold ${Math.round(S*0.046)}px Inter`; ctx.fillStyle = '#00d8ff';
+    ctx.fillText('Pre-40S', LX, MY + S*0.248);
+    ctx.shadowBlur=8;
+    ctx.font = `600 ${Math.round(S*0.030)}px Inter`; ctx.fillStyle = 'rgba(0,220,255,0.95)';
+    ctx.fillText('small subunit', LX, MY + S*0.282);
+    ctx.textAlign = 'left'; ctx.restore();
+  }
+
+  // ── RIGHT — pre-60S scaffold ──────────────────────────────────
+  draw28SScaffold(RX, MY + S*0.02, 1.5);
+  drawSubunitProteinCloud(RX, MY, 28, 30, 1);
+
+  // pre-60S label
+  {
+    const la = Math.min(dp / 0.25, 1);
+    ctx.save(); ctx.globalAlpha = fadeAlpha * la; ctx.textAlign = 'center';
+    ctx.shadowColor='rgba(0,0,0,1)'; ctx.shadowBlur=12;
+    ctx.font = `bold ${Math.round(S*0.046)}px Inter`; ctx.fillStyle = '#ff8c00';
+    ctx.fillText('Pre-60S', RX, MY + S*0.248);
+    ctx.shadowBlur=8;
+    ctx.font = `600 ${Math.round(S*0.030)}px Inter`; ctx.fillStyle = 'rgba(255,160,40,0.95)';
+    ctx.fillText('large subunit', RX, MY + S*0.282);
+    ctx.textAlign = 'left'; ctx.restore();
+  }
+
+  // ── 5S rRNA approach — visible until fully docked ─────────────
+  if (dp < 0.97) {
+    // Trail
+    for (let ti = 1; ti <= 5; ti++) {
+      const tr  = Math.max(0, dp - ti * 0.030);
+      const te  = ease(tr);
+      const ttx = s5StartX + (grooveX - s5StartX) * te;
+      const tty = s5StartY + (grooveY - s5StartY) * te;
+      ctx.save(); ctx.globalAlpha = fadeAlpha * 0.22 * (1 - ti / 5);
+      ctx.beginPath(); ctx.arc(ttx, tty, S * 0.012 * (1 - ti * 0.12), 0, Math.PI*2);
+      ctx.fillStyle = 'rgba(180,255,130,1)'; ctx.fill();
+      ctx.restore();
+    }
+
+    // Body
+    ctx.save(); ctx.globalAlpha = fadeAlpha;
+    const g5 = ctx.createRadialGradient(cur5Sx - S*0.007, cur5Sy - S*0.007, 0, cur5Sx, cur5Sy, S*0.028);
+    g5.addColorStop(0,   'rgba(210,255,155,0.98)');
+    g5.addColorStop(0.5, 'rgba(145,225,85,0.72)');
+    g5.addColorStop(1,   'rgba(70,180,20,0)');
+    ctx.fillStyle = g5; ctx.beginPath(); ctx.arc(cur5Sx, cur5Sy, S*0.028, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(cur5Sx, cur5Sy, S*0.014, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(210,255,150,0.92)'; ctx.fill();
+    ctx.restore();
+
+    // Label — fades as it arrives
+    const lA = Math.min(dp / 0.18, 1) * Math.max(0, 1 - (dp - 0.62) / 0.22);
+    if (lA > 0) {
+      ctx.save(); ctx.globalAlpha = fadeAlpha * lA; ctx.textAlign = 'center';
+      ctx.shadowColor='rgba(0,0,0,1)'; ctx.shadowBlur=8;
+      ctx.font = `bold ${Math.round(S*0.030)}px Inter`; ctx.fillStyle = '#b8ff80';
+      ctx.fillText('5S rRNA', cur5Sx, cur5Sy - S*0.044);
+      ctx.shadowBlur=6;
+      ctx.font = `600 ${Math.round(S*0.024)}px Inter`; ctx.fillStyle = 'rgba(195,252,140,0.95)';
+      ctx.fillText('(RNA Pol III)', cur5Sx, cur5Sy - S*0.018);
+      ctx.textAlign = 'left'; ctx.restore();
+    }
+
+    // Groove target — pulsing dashed ring at dock site
+    if (dp > 0.15 && dp < 0.88) {
+      const ringA = Math.min((dp - 0.15) / 0.18, 1) * Math.max(0, 1 - (dp - 0.62) / 0.26);
+      const pulse = 1 + 0.14 * Math.sin(animT * 0.20);
+      ctx.save(); ctx.globalAlpha = fadeAlpha * ringA * 0.72;
+      ctx.beginPath(); ctx.arc(grooveX, grooveY, S*0.036*pulse, 0, Math.PI*2);
+      ctx.strokeStyle = 'rgba(0,255,200,0.70)'; ctx.lineWidth = S*0.004;
+      ctx.setLineDash([S*0.008, S*0.006]); ctx.stroke(); ctx.setLineDash([]);
+      ctx.restore();
+    }
+  }
+
+  // ── Glow ripple — expands from groove through the 60S body ───
+  if (glowActive && gp > 0) {
+    // Ring-wave expanding from groove centre
+    const maxR   = r60 * 1.80;
+    const waveR  = maxR * gp;
+    const waveW  = r60 * 0.50;
+    const waveA  = Math.max(0, 1 - Math.abs(gp - 0.45) / 0.55) * 0.90;
+
+    // Inner warm-up: centre glow burst at impact moment
+    if (gp < 0.40) {
+      const burstA = (1 - gp / 0.40) * 0.95;
+      const gb = ctx.createRadialGradient(grooveX, grooveY, 0, grooveX, grooveY, S*0.060);
+      gb.addColorStop(0,   `rgba(220,255,200,${burstA})`);
+      gb.addColorStop(0.35,`rgba(0,255,180,${burstA*0.55})`);
+      gb.addColorStop(0.70,`rgba(255,215,50,${burstA*0.22})`);
+      gb.addColorStop(1,   'rgba(0,0,0,0)');
+      ctx.fillStyle = gb;
+      ctx.beginPath(); ctx.arc(grooveX, grooveY, S*0.060, 0, Math.PI*2); ctx.fill();
+    }
+
+    // Expanding ring — cyan leading edge, gold trailing
+    if (waveA > 0 && waveR > 0) {
+      const inner = Math.max(0, waveR - waveW);
+      const outer = waveR + waveW * 0.3;
+      const gw = ctx.createRadialGradient(grooveX, grooveY, inner, grooveX, grooveY, outer);
+      gw.addColorStop(0,   'rgba(0,0,0,0)');
+      gw.addColorStop(0.3, `rgba(0,230,200,${waveA * 0.50})`);
+      gw.addColorStop(0.7, `rgba(255,210,50,${waveA * 0.35})`);
+      gw.addColorStop(1,   'rgba(0,0,0,0)');
+      ctx.fillStyle = gw;
+      ctx.beginPath(); ctx.arc(grooveX, grooveY, outer, 0, Math.PI*2); ctx.fill();
+    }
+
+    // Settled integrated node — 5S merges into scaffold
+    if (gp > 0.50) {
+      const intA = Math.min((gp - 0.50) / 0.35, 1);
+      ctx.save(); ctx.globalAlpha = fadeAlpha * intA;
+
+      // Glowing node at groove
+      const gi = ctx.createRadialGradient(grooveX - S*0.004, grooveY - S*0.004, 0, grooveX, grooveY, S*0.024);
+      gi.addColorStop(0,    'rgba(210,255,155,0.98)');
+      gi.addColorStop(0.50, 'rgba(130,215,70,0.80)');
+      gi.addColorStop(1,    'rgba(60,170,20,0)');
+      ctx.fillStyle = gi; ctx.beginPath(); ctx.arc(grooveX, grooveY, S*0.024, 0, Math.PI*2); ctx.fill();
+
+      // Outer halo
+      const gh = ctx.createRadialGradient(grooveX, grooveY, 0, grooveX, grooveY, S*0.050);
+      gh.addColorStop(0, 'rgba(160,255,100,0.20)');
+      gh.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = gh; ctx.beginPath(); ctx.arc(grooveX, grooveY, S*0.050, 0, Math.PI*2); ctx.fill();
+
+      // "5S rRNA ✓" label anchored to scaffold node
+      if (intA > 0.45) {
+        const tlA = Math.min((intA - 0.45) / 0.35, 1);
+        ctx.globalAlpha = fadeAlpha * tlA;
+        ctx.shadowColor='rgba(0,0,0,1)'; ctx.shadowBlur=8;
+        ctx.textAlign = 'center';
+        ctx.font = `bold ${Math.round(S*0.030)}px Inter`;
+        ctx.fillStyle = '#b8ff80';
+        ctx.fillText('5S rRNA ✓', grooveX, grooveY - S*0.040);
+        ctx.shadowBlur=6;
+        ctx.font = `600 ${Math.round(S*0.024)}px Inter`;
+        ctx.fillStyle = 'rgba(185,250,130,0.95)';
+        ctx.fillText('incorporated', grooveX, grooveY - S*0.016);
+        ctx.textAlign = 'left';
+      }
+      ctx.restore();
+    }
+  }
+
+  // ── Export arrows — appear once export begins ─────────────────
+  if (ep > 0.05 && ep < 0.80) {
+    const arrowA = Math.min((ep-0.05)/0.18, 1) * Math.max(0, 1-(ep-0.60)/0.20);
+    if (arrowA > 0) {
+      ctx.save(); ctx.globalAlpha = arrowA;
+      drawExportArrow(LX, MY - S*0.30);
+      drawExportArrow(RX, MY - S*0.30);
+      ctx.restore();
+    }
+  }
+
+  ctx.restore(); // end translate(0, driftY)
+}
+
+// ── Subtle protein cloud overlay for integrated subunit in phase 6 ──
+function drawSubunitProteinCloud(cx, cy, count, hue, alpha) {
+  const S = SIZE;
+  // Deterministic positions so it looks stable (seed based on index)
+  for (let i = 0; i < count; i++) {
+    const angle = (i / count) * Math.PI * 2 + i * 0.37;
+    const dist  = S * (0.05 + (((i * 7) % 11) / 11) * 0.12);
+    const x     = cx + Math.cos(angle) * dist;
+    const y     = cy + Math.sin(angle) * dist;
+    const r     = S * (0.008 + (((i * 3) % 7) / 7) * 0.006);
+    ctx.save(); ctx.globalAlpha = alpha * 0.45;
+    const g = ctx.createRadialGradient(x, y, 0, x, y, r * 2.8);
+    g.addColorStop(0, `hsla(${hue},85%,72%,0.55)`);
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r*2.8, 0, Math.PI*2); ctx.fill();
+    const gc = ctx.createRadialGradient(x-r*0.3, y-r*0.3, 0, x, y, r);
+    gc.addColorStop(0, `hsla(${hue},75%,88%,0.9)`);
+    gc.addColorStop(1, `hsla(${hue},60%,50%,0.5)`);
+    ctx.fillStyle = gc; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+}
+
+// ── Export arrow ────────────────────────────────────────────────
+function drawExportArrow(x, y) {
+  const S = SIZE;
+  const pulse = 1 + 0.12 * Math.sin(animT * 0.14);
+  const ay = y + S*0.012 * pulse;
+  ctx.save();
+  ctx.strokeStyle = 'rgba(0,220,255,0.90)';
+  ctx.fillStyle   = 'rgba(0,220,255,0.90)';
+  ctx.lineWidth   = S*0.006;
+  // Shaft
+  ctx.beginPath(); ctx.moveTo(x, ay - S*0.025); ctx.lineTo(x, ay + S*0.025); ctx.stroke();
+  // Arrowhead pointing down (toward envelope)
+  ctx.beginPath();
+  ctx.moveTo(x, ay + S*0.038);
+  ctx.lineTo(x - S*0.016, ay + S*0.020);
+  ctx.lineTo(x + S*0.016, ay + S*0.020);
+  ctx.closePath(); ctx.fill();
+  ctx.shadowColor='rgba(0,0,0,1)'; ctx.shadowBlur=8;
+  ctx.font = `600 ${Math.round(S*0.026)}px Inter`;
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(0,230,255,0.95)';
+  ctx.fillText('→ export', x, ay - S*0.040);
+  ctx.textAlign = 'left';
+  ctx.restore();
+}
+
+// ── Phase 7: Nuclear Export — Close-up, full canvas, no dish clip ──
+function drawNuclearExport() {
+  const S  = SIZE;
+  const ep = npcExportProgress;
+  const ease    = t => t < 0.5 ? 2*t*t : -1+(4-2*t)*t;
+  const easeOut = t => 1 - (1-t)*(1-t);
+  const easeIn  = t => t * t;
+  const clamp   = (v,a,b) => Math.max(a, Math.min(b, v));
+  const lerp    = (a,b,t) => a + (b-a)*t;
+
+  // ── Full-canvas dark background ───────────────────────────────
+  ctx.fillStyle = '#03050a';
+  ctx.fillRect(0, 0, S, S);
+
+  // Subtle radial ambience
+  const amb = ctx.createRadialGradient(CX, CY, 0, CX, CY, S*0.6);
+  amb.addColorStop(0,   'rgba(0,30,60,0.55)');
+  amb.addColorStop(0.5, 'rgba(0,15,35,0.30)');
+  amb.addColorStop(1,   'rgba(0,0,0,0)');
+  ctx.fillStyle = amb; ctx.fillRect(0, 0, S, S);
+
+  // ── Timeline ──────────────────────────────────────────────────
+  // 0.00–0.12  envelope fades in + pores open
+  // 0.10–0.45  pre-40S approaches pore 0 (left)
+  // 0.38–0.58  pre-40S squeezes → emerges
+  // 0.42–0.72  pre-60S approaches pore 2 (right)
+  // 0.65–0.82  pre-60S squeezes → emerges
+  // 0.80–1.00  both rest in cytoplasm; pores dim; 80S hint
+
+  const envFadeIn  = clamp(ep / 0.12, 0, 1);
+  const poreOpen40 = clamp((ep - 0.06) / 0.14, 0, 1); // pore 0 opens ahead of 40S
+  const poreOpen60 = clamp((ep - 0.34) / 0.14, 0, 1); // pore 2 opens ahead of 60S
+
+  // After transit, pores dim
+  const poreDim40  = clamp((ep - 0.62) / 0.12, 0, 1);
+  const poreDim60  = clamp((ep - 0.86) / 0.12, 0, 1);
+
+  // ── Envelope geometry — horizontal band across canvas centre ──
+  const envY    = CY;          // centre of the double membrane band
+  const envThk  = S * 0.040;  // half-thickness of perinuclear space
+  const envTop  = envY - envThk;
+  const envBot  = envY + envThk;
+
+  // ── NPC positions — 4 pores along the envelope ────────────────
+  const npcX = [S*0.22, S*0.40, S*0.62, S*0.80];
+  // pore 0 = left (pre-40S), pore 2 = right-centre (pre-60S)
+  // pores 1,3 are flanking spares
+
+  // ── Subunit size in close-up (larger than assembly scene) ─────
+  const sub40BaseR = S * 0.095;   // radius of 40S sphere proxy
+  const sub60BaseR = S * 0.115;   // 60S is bigger
+
+
+  // ── pre-40S trajectory ────────────────────────────────────────
+  const ap40App  = clamp((ep - 0.10) / 0.32, 0, 1);  // approach to pore
+  const ap40Sq   = clamp((ep - 0.38) / 0.10, 0, 1);  // squeeze into pore
+  const ap40Em   = clamp((ep - 0.46) / 0.12, 0, 1);  // emerge into cytoplasm
+  const ap40Stl  = clamp((ep - 0.60) / 0.10, 0, 1);  // settle
+
+  const pore40x = npcX[0];
+  const nucl40y = envY - S*0.22;
+  const cyto40y = envY + S*0.22;
+
+  let p40x, p40y, sx40, sy40;
+  {
+    const te    = ease(ap40App);
+    p40x = lerp(S*0.22, pore40x, te);
+    p40y = lerp(nucl40y, envY, te);
+    if (ap40Em > 0) p40y = lerp(envY, cyto40y, ease(ap40Em));
+    if (ep >= 0.60) { p40x = pore40x; p40y = cyto40y; }
+
+    // Deformation: collapse to near-dot while threading through pore, restore after
+    const sqIn  = ease(ap40Sq);
+    const sqOut = ease(ap40Em);
+    const deform = sqIn - sqOut;            // 0 → +1 → 0 arc through pore
+    // At peak squeeze both axes collapse to ~0.12 (near-dot)
+    sx40 = 1 - 0.88 * deform;
+    sy40 = 1 - 0.88 * deform;
+    // After full emergence, snap back to full size
+    if (ap40Em >= 1) { sx40 = 1; sy40 = 1; }
+  }
+
+  // ── pre-60S trajectory ────────────────────────────────────────
+  const ap60App  = clamp((ep - 0.42) / 0.25, 0, 1);
+  const ap60Sq   = clamp((ep - 0.65) / 0.10, 0, 1);
+  const ap60Em   = clamp((ep - 0.73) / 0.12, 0, 1);
+  const ap60Stl  = clamp((ep - 0.86) / 0.10, 0, 1);
+
+  const pore60x = npcX[2];
+  const nucl60y = envY - S*0.24;
+  const cyto60y = envY + S*0.24;
+
+  let p60x, p60y, sx60, sy60;
+  {
+    const te    = ease(ap60App);
+    p60x = lerp(S*0.78, pore60x, te);
+    p60y = lerp(nucl60y, envY, te);
+    if (ap60Em > 0) p60y = lerp(envY, cyto60y, ease(ap60Em));
+    if (ep >= 0.86) { p60x = pore60x; p60y = cyto60y; }
+
+    const sqIn  = ease(ap60Sq);
+    const sqOut = ease(ap60Em);
+    const deform = sqIn - sqOut;
+    // At peak squeeze both axes collapse to ~0.12 (near-dot)
+    sx60 = 1 - 0.88 * deform;
+    sy60 = 1 - 0.88 * deform;
+    // After full emergence, snap back to full size
+    if (ap60Em >= 1) { sx60 = 1; sy60 = 1; }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // DRAW ORDER: subunits behind → envelope → pores on top
+  // ═══════════════════════════════════════════════════════════════
+
+  // ── Draw pre-40S ──────────────────────────────────────────────
+  {
+    ctx.save();
+    ctx.translate(p40x, p40y);
+    ctx.scale(sx40, sy40);
+    draw18SScaffold(0, S*0.02, 1.5);
+    drawSubunitProteinCloud(0, 0, 22, 195, 1);
+    ctx.restore();
+
+    // Label
+    const lblA40 = ap40Stl > 0 ? ease(ap40Stl)
+                 : (ap40App > 0 ? clamp(ap40App/0.20,0,1) * clamp((1-ap40App)/0.18,0,1) : 0);
+    if (lblA40 > 0) {
+      ctx.save(); ctx.globalAlpha = lblA40; ctx.textAlign = 'center';
+      ctx.shadowColor='rgba(0,0,0,1)'; ctx.shadowBlur=10;
+      ctx.font = `bold ${Math.round(S*0.040)}px Inter`;
+      ctx.fillStyle = '#00d8ff';
+      const lblY = ap40Stl > 0 ? cyto40y + sub40BaseR + S*0.045
+                               : p40y   - sub40BaseR*sy40 - S*0.115;
+      ctx.fillText('Pre-40S', ap40Stl > 0 ? pore40x : p40x, lblY);
+      if (ap40Stl > 0) {
+        ctx.shadowBlur=7;
+        ctx.font = `600 ${Math.round(S*0.026)}px Inter`;
+        ctx.fillStyle = 'rgba(0,220,255,0.95)';
+        ctx.fillText('cytoplasm ✓', pore40x, lblY + S*0.032);
+      }
+      ctx.textAlign = 'left'; ctx.restore();
+    }
+  }
+
+  // ── Draw pre-60S ──────────────────────────────────────────────
+  {
+    ctx.save();
+    ctx.translate(p60x, p60y);
+    ctx.scale(sx60, sy60);
+    draw28SScaffold(0, S*0.02, 1.5);
+    drawSubunitProteinCloud(0, 0, 28, 30, 1);
+    // 5S integrated node
+    {
+      const r60n = S * 0.165;
+      const gx = -r60n*0.05, gy = S*0.02 - r60n*0.72;
+      const gi = ctx.createRadialGradient(gx-S*0.003, gy-S*0.003, 0, gx, gy, S*0.022);
+      gi.addColorStop(0,'rgba(210,255,155,0.95)');
+      gi.addColorStop(0.5,'rgba(130,215,70,0.70)');
+      gi.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.fillStyle = gi; ctx.beginPath(); ctx.arc(gx, gy, S*0.022, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.restore();
+
+    const lblA60 = ap60Stl > 0 ? ease(ap60Stl)
+                 : (ap60App > 0 ? clamp(ap60App/0.20,0,1) * clamp((1-ap60App)/0.18,0,1) : 0);
+    if (lblA60 > 0) {
+      ctx.save(); ctx.globalAlpha = lblA60; ctx.textAlign = 'center';
+      ctx.shadowColor='rgba(0,0,0,1)'; ctx.shadowBlur=10;
+      ctx.font = `bold ${Math.round(S*0.040)}px Inter`;
+      ctx.fillStyle = '#ff8c00';
+      const lblY = ap60Stl > 0 ? cyto60y + sub60BaseR + S*0.045
+                               : p60y    - sub60BaseR*sy60 - S*0.115;
+      ctx.fillText('Pre-60S', ap60Stl > 0 ? pore60x : p60x, lblY);
+      if (ap60Stl > 0) {
+        ctx.shadowBlur=7;
+        ctx.font = `600 ${Math.round(S*0.026)}px Inter`;
+        ctx.fillStyle = 'rgba(255,168,40,0.95)';
+        ctx.fillText('cytoplasm ✓', pore60x, lblY + S*0.032);
+      }
+      ctx.textAlign = 'left'; ctx.restore();
+    }
+  }
+
+  // ── Nuclear Envelope — double membrane band ───────────────────
+  if (envFadeIn > 0) {
+    ctx.save(); ctx.globalAlpha = envFadeIn;
+
+    // Perinuclear space fill
+    const pnFill = ctx.createLinearGradient(0, envTop, 0, envBot);
+    pnFill.addColorStop(0,   'rgba(0,160,220,0.12)');
+    pnFill.addColorStop(0.5, 'rgba(0,140,200,0.22)');
+    pnFill.addColorStop(1,   'rgba(0,160,220,0.12)');
+    ctx.fillStyle = pnFill;
+    ctx.fillRect(0, envTop, S, envThk*2);
+
+    // Outer membrane line
+    ctx.beginPath(); ctx.moveTo(0, envTop); ctx.lineTo(S, envTop);
+    ctx.strokeStyle = 'rgba(0,200,255,0.65)'; ctx.lineWidth = S*0.006; ctx.stroke();
+
+    // Inner membrane line
+    ctx.beginPath(); ctx.moveTo(0, envBot); ctx.lineTo(S, envBot);
+    ctx.strokeStyle = 'rgba(0,180,255,0.45)'; ctx.lineWidth = S*0.005; ctx.stroke();
+
+    ctx.restore();
+  }
+
+  // ── Nuclear Pore Complexes ────────────────────────────────────
+  // Per-pore open progress and dim progress
+  const poreOpenP  = [poreOpen40, clamp((ep-0.10)/0.10,0,1), poreOpen60, clamp((ep-0.28)/0.10,0,1)];
+  const poreDimP   = [poreDim40,  clamp((ep-0.66)/0.12,0,1), poreDim60,  clamp((ep-0.88)/0.12,0,1)];
+
+  // Which pore is actively transiting a subunit
+  const poreActive = [
+    (ap40Sq > 0 && ap40Em < 1),
+    false,
+    (ap60Sq > 0 && ap60Em < 1),
+    false,
+  ];
+
+  npcX.forEach((px, i) => {
+    const openT  = ease(poreOpenP[i]);
+    const dimT   = ease(poreDimP[i]);
+    const alpha  = envFadeIn * openT * (1 - dimT * 0.75);
+    if (alpha <= 0.01) return;
+
+    // Transit glow — which subunit is squeezing
+    const sqT   = i===0 ? ease(Math.min(ap40Sq*2,1))*(1-ease(Math.max((ap40Sq-.5)*2,0)))
+                : i===2 ? ease(Math.min(ap60Sq*2,1))*(1-ease(Math.max((ap60Sq-.5)*2,0)))
+                : 0;
+    const isAct = poreActive[i];
+
+    ctx.save();
+    ctx.translate(px, envY);
+    ctx.globalAlpha = alpha;
+
+    const pR = S * 0.030 * openT;  // pore radius opens from 0 → full
+
+    // ── Gap in both membrane lines at pore position ─────────────
+    // Overdraw bg colour to erase membrane lines at pore
+    ctx.save();
+    ctx.globalAlpha = envFadeIn * openT;
+    ctx.fillStyle = '#03050a';
+    ctx.fillRect(-pR*1.8, -envThk*1.5, pR*3.6, envThk*3);
+    ctx.restore();
+
+    // ── Outer glow halo ─────────────────────────────────────────
+    const haloBoost = 1 + sqT * 1.2;
+    const halo = ctx.createRadialGradient(0, 0, 0, 0, 0, pR * 4 * haloBoost);
+    halo.addColorStop(0,   `rgba(30,255,100,${0.25 * haloBoost})`);
+    halo.addColorStop(0.4, `rgba(0,240,80, ${0.12 * haloBoost})`);
+    halo.addColorStop(1,   'rgba(0,0,0,0)');
+    ctx.fillStyle = halo;
+    ctx.beginPath(); ctx.arc(0, 0, pR*4*haloBoost, 0, Math.PI*2); ctx.fill();
+
+    // ── Iris ring (outer) ────────────────────────────────────────
+    ctx.beginPath(); ctx.arc(0, 0, pR, 0, Math.PI*2);
+    ctx.strokeStyle = `rgba(40,255,110,${0.85 + sqT*0.15})`;
+    ctx.lineWidth = S * 0.005;
+    ctx.stroke();
+
+    // ── Inner ring ───────────────────────────────────────────────
+    ctx.beginPath(); ctx.arc(0, 0, pR*0.62, 0, Math.PI*2);
+    ctx.strokeStyle = `rgba(20,220,80,${0.45 + sqT*0.30})`;
+    ctx.lineWidth = S * 0.003;
+    ctx.stroke();
+
+    // ── Channel fill ─────────────────────────────────────────────
+    const chan = ctx.createRadialGradient(0, 0, 0, 0, 0, pR*0.55);
+    chan.addColorStop(0, `rgba(20,255,90,${0.28 + sqT*0.40})`);
+    chan.addColorStop(0.6, `rgba(0,200,60,${0.12 + sqT*0.20})`);
+    chan.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = chan;
+    ctx.beginPath(); ctx.arc(0, 0, pR*0.55, 0, Math.PI*2); ctx.fill();
+
+    // ── 8 nucleoporin spoke dots ─────────────────────────────────
+    for (let s = 0; s < 8; s++) {
+      const sa = (s/8)*Math.PI*2 + animT*0.008;
+      const sd = pR * 0.72;
+      ctx.beginPath(); ctx.arc(Math.cos(sa)*sd, Math.sin(sa)*sd, S*0.0035, 0, Math.PI*2);
+      ctx.fillStyle = `rgba(80,255,130,${0.65 + sqT*0.25})`; ctx.fill();
+    }
+
+    // ── Membrane reconnect lines at pore edge ────────────────────
+    // Redraw short membrane segments touching pore ring
+    [-1,1].forEach(side => {
+      // outer membrane reconnect
+      ctx.beginPath();
+      ctx.moveTo(side*pR, -envThk);
+      ctx.lineTo(side*pR*1.6, -envThk);
+      ctx.strokeStyle = 'rgba(0,200,255,0.65)'; ctx.lineWidth = S*0.006; ctx.stroke();
+      // inner membrane reconnect
+      ctx.beginPath();
+      ctx.moveTo(side*pR, envThk);
+      ctx.lineTo(side*pR*1.6, envThk);
+      ctx.strokeStyle = 'rgba(0,180,255,0.45)'; ctx.lineWidth = S*0.005; ctx.stroke();
+    });
+
+    // ── Transit burst when subunit is squeezing through ──────────
+    if (sqT > 0.05) {
+      const burst = ctx.createRadialGradient(0,0,0, 0,0, pR*2.8);
+      burst.addColorStop(0, `rgba(120,255,180,${sqT*0.70})`);
+      burst.addColorStop(0.4,`rgba(0,255,100, ${sqT*0.35})`);
+      burst.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = burst;
+      ctx.beginPath(); ctx.arc(0,0, pR*2.8, 0, Math.PI*2); ctx.fill();
+      // Ripple ring
+      const ripR = pR * (1.2 + sqT * 1.6);
+      ctx.beginPath(); ctx.arc(0,0, ripR, 0, Math.PI*2);
+      ctx.strokeStyle = `rgba(0,255,120,${sqT*0.45*(1-sqT)})`;
+      ctx.lineWidth = S*0.004; ctx.stroke();
+    }
+
+    ctx.restore();
+  });
+
+  // ── Zone labels — Nucleus (above) / Cytoplasm (below) ────────
+  if (envFadeIn > 0.5) {
+    const zla = clamp((envFadeIn - 0.5) / 0.4, 0, 1);
+    ctx.save(); ctx.globalAlpha = zla * 0.92; ctx.textAlign = 'right';
+    ctx.shadowColor = 'rgba(0,0,0,1)'; ctx.shadowBlur = 8;
+    ctx.font = `600 ${Math.round(S * 0.026)}px Space Mono,monospace`;
+    ctx.fillStyle = 'rgba(185,210,255,0.97)';
+    ctx.fillText('NUCLEUS', S * 0.96, envY - envThk - S*0.022);
+    ctx.fillStyle = 'rgba(140,220,200,0.97)';
+    ctx.fillText('CYTOPLASM', S * 0.96, envY + envThk + S*0.038);
+    ctx.textAlign = 'left'; ctx.shadowBlur = 0; ctx.restore();
+  }
+
+  // ── NPC labels ────────────────────────────────────────────────
+  if (envFadeIn > 0.6) {
+    const la = clamp((envFadeIn - 0.6)/0.4, 0, 1);
+    npcX.forEach((px, i) => {
+      const dimT = ease(poreDimP[i]);
+      const openT = ease(poreOpenP[i]);
+      const la2 = la * openT * (1 - dimT*0.9);
+      if (la2 < 0.05) return;
+      ctx.save(); ctx.globalAlpha = la2; ctx.textAlign = 'center';
+      ctx.shadowColor='rgba(0,0,0,1)'; ctx.shadowBlur=7;
+      ctx.font = `600 ${Math.round(S*0.024)}px Space Mono,monospace`;
+      ctx.fillStyle = 'rgba(80,255,130,1)';
+      ctx.fillText('NPC', px, envY + S*0.072);
+      ctx.textAlign='left'; ctx.restore();
+    });
+  }
+
+  // ── Cytoplasm maturation — 80S hint ───────────────────────────
+  if (ep > 0.90) {
+    const ribA = ease(clamp((ep-0.90)/0.10, 0, 1)) * 0.5;
+    const mx   = (npcX[0] + npcX[2]) * 0.5;
+    const my2  = envY + S*0.34;
+    const gr   = ctx.createRadialGradient(mx, my2, 0, mx, my2, S*0.18);
+    gr.addColorStop(0, `rgba(255,210,60,${ribA*0.35})`);
+    gr.addColorStop(0.5,`rgba(0,200,255,${ribA*0.15})`);
+    gr.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(mx, my2, S*0.18, 0, Math.PI*2); ctx.fill();
+    ctx.save(); ctx.globalAlpha = ribA*1.4; ctx.textAlign = 'center';
+    ctx.shadowColor='rgba(0,0,0,1)'; ctx.shadowBlur=10;
+    ctx.font = `bold ${Math.round(S*0.025)}px Space Mono,monospace`;
+    ctx.fillStyle = 'rgba(255,225,80,0.98)';
+    ctx.fillText('→ 80S Ribosome', mx, my2 + S*0.06);
+    ctx.shadowBlur=7;
+    ctx.font = `600 ${Math.round(S*0.021)}px Inter`;
+    ctx.fillStyle = 'rgba(255,215,70,0.92)';
+    ctx.fillText('final maturation', mx, my2 + S*0.088);
+    ctx.textAlign = 'left'; ctx.restore();
+  }
+}
+
+
+// ── Phase 8 — Whole cell reveal ──────────────────────────────────
+let phase8Progress = 0;
+let p8sub40 = null;
+let p8sub60 = null;
+
+function initPhase8() {
+  phase8Progress = 0;
+  const nucR = SIZE * 0.155;
+  // Place subunits in cytoplasm — lower half, flanking the nucleus
+  p8sub40 = { x: CX - nucR*0.80, y: CY + nucR*1.45, vx:  0.4, vy: 0.6 };
+  p8sub60 = { x: CX + nucR*1.00, y: CY + nucR*1.55, vx: -0.5, vy: 0.5 };
+}
+
+function updateBrownianSub(sub) {
+  const S    = SIZE;
+  const cellR = S * 0.415;
+  const nucEx = S * 0.200; // exclusion radius: nucleus + subunit clearance
+  // Nucleus is offset from cell centre — must match NUC_CX/NUC_CY in drawWholeCell
+  const nucCX = CX - S * 0.042;
+  const nucCY = CY - S * 0.018;
+
+  sub.vx += (Math.random() - 0.5) * 0.80;
+  sub.vy += (Math.random() - 0.5) * 0.80;
+  sub.vx *= 0.82; sub.vy *= 0.82;
+  const spd = Math.hypot(sub.vx, sub.vy);
+  if (spd > 2.2) { sub.vx *= 2.2/spd; sub.vy *= 2.2/spd; }
+  sub.x += sub.vx; sub.y += sub.vy;
+
+  // Bounce off cell wall (cell is centred at CX/CY)
+  const drCell = Math.hypot(sub.x - CX, sub.y - CY);
+  if (drCell > cellR - S*0.055) {
+    const ang = Math.atan2(sub.y - CY, sub.x - CX);
+    sub.x = CX + (cellR - S*0.055) * Math.cos(ang);
+    sub.y = CY + (cellR - S*0.055) * Math.sin(ang);
+    sub.vx *= -0.55; sub.vy *= -0.55;
+  }
+  // Bounce off nucleus (nucleus is offset — use nucCX/nucCY, not CX/CY)
+  const drNuc = Math.hypot(sub.x - nucCX, sub.y - nucCY);
+  if (drNuc < nucEx) {
+    const ang = Math.atan2(sub.y - nucCY, sub.x - nucCX);
+    sub.x = nucCX + nucEx * Math.cos(ang);
+    sub.y = nucCY + nucEx * Math.sin(ang);
+    sub.vx *= -0.55; sub.vy *= -0.55;
+  }
+}
+
+function drawWholeCell() {
+  const S = SIZE;
+  const p8 = phase8Progress;
+  const ease  = t => t < 0.5 ? 2*t*t : -1+(4-2*t)*t;
+  const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+
+  // Dark background — always full opacity (creates clean cut from phase 7)
+  ctx.fillStyle = '#03050a';
+  ctx.fillRect(0, 0, S, S);
+  const amb = ctx.createRadialGradient(CX, CY, 0, CX, CY, S*0.55);
+  amb.addColorStop(0, 'rgba(0,20,50,0.60)');
+  amb.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = amb; ctx.fillRect(0, 0, S, S);
+
+  const fadeIn = clamp(p8 / 0.06, 0, 1);
+  ctx.save(); ctx.globalAlpha = fadeIn;
+
+  const CELL_R = S * 0.49;
+  const NUC_R  = S * 0.155;  // final nucleus radius
+  const NF     = NUC_R;
+
+  // ── Camera zoom-out: nucleus shrinks from large → small circle ──
+  const NR_START = S * 0.41;
+  const zoomT = clamp(p8 / 0.50, 0, 1);
+  const nucR  = NR_START + (NUC_R - NR_START) * ease(zoomT);
+
+  // ── Layout anchor — nucleus slightly left-of-centre ──────────
+  const NUC_CX = CX - S*0.042;
+  const NUC_CY = CY - S*0.018;
+
+  // ── Clip everything to cell boundary — no organelle can leak outside ──
+  ctx.beginPath(); ctx.arc(CX, CY, CELL_R - S*0.005, 0, Math.PI*2); ctx.clip();
+
+  // ── Shared palette (BioRender-style, matches reference) ──────
+  // Membrane purple/lavender for ER + Golgi
+  const MEM_STROKE = 'rgba(148,105,210,0.82)';
+  const MEM_FILL   = 'rgba(120,80,190,0.10)';
+  // Plasma membrane — soft teal
+  const PM_STROKE   = 'rgba(90,195,175,0.75)';
+
+  // ── Cytoplasm fill ────────────────────────────────────────────
+  const memA = clamp((p8 - 0.28) / 0.22, 0, 1);
+  if (memA > 0) {
+    ctx.save(); ctx.globalAlpha = memA;
+    // Pale blue-lavender cytoplasm tint, lighter than background
+    const cytoGr = ctx.createRadialGradient(NUC_CX, NUC_CY, nucR*0.5, CX, CY, CELL_R);
+    cytoGr.addColorStop(0,   'rgba(30,50,110,0.30)');
+    cytoGr.addColorStop(0.6, 'rgba(20,35,85,0.22)');
+    cytoGr.addColorStop(1,   'rgba(8,12,40,0.12)');
+    ctx.fillStyle = cytoGr;
+    ctx.beginPath(); ctx.arc(CX, CY, CELL_R, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+
+  // ── Cytoplasm particles — drifting plain dots, nearly transparent ──
+  // Simulate Brownian motion of cytosolic proteins/solutes
+  if (memA > 0) {
+    ctx.save(); ctx.globalAlpha = memA;
+    // 55 particles — seeded deterministically so positions are stable
+    // Each drifts slowly using sin/cos of animT with unique phase offsets
+    const pSeed = [
+      // [normX, normY, radius, driftAmpX, driftAmpY, speedX, speedY, phaseX, phaseY]
+      // normX/Y are offsets from CX/CY as fractions of CELL_R
+      [-0.72, -0.55, 1.8, 0.018, 0.014, 0.008, 0.011, 0.0,  1.2 ],
+      [-0.55, -0.72, 1.4, 0.012, 0.020, 0.010, 0.007, 2.1,  0.5 ],
+      [-0.80, -0.20, 1.6, 0.016, 0.013, 0.009, 0.012, 1.0,  3.1 ],
+      [-0.82,  0.30, 1.5, 0.014, 0.018, 0.011, 0.008, 3.5,  0.8 ],
+      [-0.78,  0.60, 1.7, 0.020, 0.015, 0.007, 0.013, 0.7,  2.4 ],
+      [-0.60,  0.75, 1.4, 0.013, 0.017, 0.012, 0.009, 4.2,  1.6 ],
+      [-0.40,  0.82, 1.6, 0.017, 0.012, 0.008, 0.014, 1.8,  0.3 ],
+      [-0.20,  0.88, 1.5, 0.015, 0.019, 0.010, 0.008, 2.9,  3.8 ],
+      [ 0.10,  0.85, 1.3, 0.011, 0.016, 0.013, 0.010, 0.4,  1.1 ],
+      [ 0.35,  0.80, 1.8, 0.019, 0.013, 0.008, 0.015, 3.1,  2.7 ],
+      [ 0.55,  0.72, 1.4, 0.014, 0.018, 0.011, 0.009, 1.5,  0.6 ],
+      [ 0.70,  0.55, 1.6, 0.016, 0.014, 0.009, 0.012, 2.6,  4.0 ],
+      [ 0.78,  0.30, 1.5, 0.013, 0.020, 0.012, 0.007, 0.9,  1.9 ],
+      [ 0.82, -0.10, 1.7, 0.018, 0.015, 0.007, 0.013, 3.8,  0.2 ],
+      [ 0.75, -0.45, 1.4, 0.015, 0.017, 0.010, 0.010, 1.3,  3.4 ],
+      [ 0.60, -0.68, 1.6, 0.012, 0.013, 0.014, 0.008, 4.5,  1.0 ],
+      [ 0.38, -0.80, 1.5, 0.017, 0.016, 0.009, 0.011, 0.6,  2.2 ],
+      [ 0.10, -0.84, 1.8, 0.020, 0.012, 0.008, 0.014, 2.4,  0.7 ],
+      [-0.20, -0.82, 1.4, 0.014, 0.019, 0.012, 0.009, 1.1,  3.6 ],
+      [-0.48, -0.76, 1.6, 0.016, 0.014, 0.010, 0.011, 3.2,  1.4 ],
+      // Inner cytoplasm — away from nucleus
+      [-0.58, -0.38, 1.3, 0.013, 0.016, 0.011, 0.009, 0.3,  2.8 ],
+      [-0.65,  0.10, 1.5, 0.018, 0.013, 0.008, 0.013, 4.1,  0.5 ],
+      [-0.55,  0.45, 1.4, 0.015, 0.018, 0.012, 0.008, 1.7,  3.3 ],
+      [-0.35,  0.60, 1.6, 0.012, 0.015, 0.009, 0.011, 2.5,  1.0 ],
+      [ 0.20,  0.65, 1.3, 0.017, 0.013, 0.010, 0.014, 0.8,  4.2 ],
+      [ 0.45,  0.55, 1.5, 0.014, 0.017, 0.013, 0.008, 3.0,  0.9 ],
+      [ 0.62,  0.35, 1.4, 0.016, 0.014, 0.008, 0.012, 1.4,  2.1 ],
+      [ 0.68, -0.25, 1.6, 0.013, 0.018, 0.011, 0.009, 4.3,  1.7 ],
+      [ 0.50, -0.55, 1.5, 0.018, 0.013, 0.009, 0.013, 0.5,  3.0 ],
+      [ 0.25, -0.65, 1.3, 0.015, 0.016, 0.012, 0.010, 2.0,  0.4 ],
+      [-0.10, -0.68, 1.7, 0.012, 0.019, 0.010, 0.008, 3.7,  1.8 ],
+      [-0.38, -0.58, 1.4, 0.017, 0.014, 0.008, 0.012, 1.2,  4.4 ],
+      // Sparse mid-cytoplasm
+      [-0.30,  0.30, 1.2, 0.014, 0.016, 0.011, 0.009, 0.2,  2.6 ],
+      [ 0.30,  0.28, 1.3, 0.016, 0.013, 0.009, 0.012, 3.4,  0.7 ],
+      [ 0.30, -0.38, 1.2, 0.013, 0.017, 0.012, 0.008, 1.6,  3.9 ],
+      [-0.28, -0.35, 1.4, 0.018, 0.014, 0.008, 0.013, 4.0,  1.3 ],
+      [ 0.55, -0.08, 1.3, 0.015, 0.016, 0.010, 0.010, 0.6,  2.3 ],
+      [-0.62,  0.08, 1.2, 0.013, 0.018, 0.011, 0.009, 2.8,  0.1 ],
+      [ 0.15,  0.42, 1.5, 0.016, 0.013, 0.008, 0.014, 1.0,  3.5 ],
+      [-0.18,  0.48, 1.3, 0.014, 0.017, 0.012, 0.008, 3.6,  1.1 ],
+      // Extra outer ring
+      [-0.88,  0.05, 1.4, 0.010, 0.014, 0.009, 0.011, 2.2,  0.8 ],
+      [ 0.88,  0.08, 1.5, 0.011, 0.013, 0.010, 0.012, 0.9,  2.5 ],
+      [ 0.05,  0.90, 1.3, 0.013, 0.011, 0.008, 0.010, 3.3,  1.4 ],
+      [ 0.02, -0.88, 1.4, 0.012, 0.015, 0.011, 0.009, 1.5,  3.8 ],
+      [-0.42, -0.82, 1.2, 0.014, 0.012, 0.009, 0.013, 4.4,  0.6 ],
+      [ 0.42,  0.82, 1.6, 0.016, 0.014, 0.008, 0.011, 0.3,  2.0 ],
+      [-0.88, -0.42, 1.3, 0.013, 0.016, 0.010, 0.009, 2.7,  1.2 ],
+      [ 0.88,  0.42, 1.4, 0.015, 0.013, 0.009, 0.012, 1.1,  3.2 ],
+      [-0.15, -0.30, 1.2, 0.012, 0.015, 0.011, 0.008, 0.4,  1.9 ],
+      [ 0.18,  0.15, 1.1, 0.014, 0.012, 0.008, 0.011, 3.9,  0.3 ],
+      [-0.08,  0.20, 1.3, 0.011, 0.014, 0.010, 0.009, 1.8,  4.1 ],
+      [ 0.22, -0.18, 1.2, 0.013, 0.013, 0.009, 0.010, 2.3,  0.6 ],
+      [-0.22,  0.08, 1.1, 0.012, 0.016, 0.011, 0.008, 0.7,  2.9 ],
+      [ 0.08, -0.22, 1.3, 0.014, 0.012, 0.008, 0.012, 3.1,  1.5 ],
+      [-0.12, -0.12, 1.2, 0.011, 0.013, 0.010, 0.009, 1.6,  0.4 ],
+    ];
+
+    ctx.fillStyle = 'rgba(160,185,230,0.11)';
+    pSeed.forEach(([nx, ny, r, ax, ay, sx, sy, px, py]) => {
+      // Skip if inside nucleus zone
+      const bx = CX + nx * CELL_R, by = CY + ny * CELL_R;
+      const dNuc = Math.hypot(bx - NUC_CX, by - NUC_CY);
+      if (dNuc < NUC_R * 1.05) return;
+
+      // Drift: slow sinusoidal wander
+      const dx = ax * CELL_R * Math.sin(animT * sx + px);
+      const dy = ay * CELL_R * Math.cos(animT * sy + py);
+
+      ctx.beginPath();
+      ctx.arc(bx + dx, by + dy, r, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    ctx.restore();
+  }
+
+  // ── Rough ER — concentric arcs wrapping right+top of nucleus ─
+  // Drawn BEFORE nucleus so it tucks naturally behind the nuclear envelope
+  const rerA = clamp((p8 - 0.34) / 0.20, 0, 1);
+  if (rerA > 0) {
+    ctx.save(); ctx.globalAlpha = rerA;
+    // No inner clip needed — outer cell clip already active
+
+    // Arc sweeps from lower-left round to upper-left (clockwise),
+    // wrapping the right+top face of the nucleus as in the reference
+    const aStart = Math.PI * 0.55;   // ~lower-left of nucleus
+    const aEnd   = Math.PI * 2.10;   // ~upper-left (past top)
+
+    for (let i = 0; i < 5; i++) {            // 5 layers (was 7) — smaller overall footprint
+      const r = NF * (1.10 + i * 0.090);    // tighter spacing (was 0.115) → compact stack
+      const tOuter = S * 0.0040, tInner = S * 0.0020;  // slimmer membranes (was 0.0055/0.003)
+
+      // Lumen band fill
+      ctx.beginPath();
+      ctx.arc(NUC_CX, NUC_CY, r + tOuter, aStart, aEnd);
+      ctx.arc(NUC_CX, NUC_CY, r - tInner, aEnd, aStart, true);
+      ctx.closePath();
+      ctx.fillStyle = MEM_FILL; ctx.fill();
+
+      // Outer membrane
+      ctx.beginPath();
+      ctx.arc(NUC_CX, NUC_CY, r + tOuter, aStart, aEnd);
+      ctx.strokeStyle = MEM_STROKE; ctx.lineWidth = S*0.003; ctx.stroke();
+
+      // Inner membrane (slightly dimmer)
+      ctx.beginPath();
+      ctx.arc(NUC_CX, NUC_CY, r - tInner, aStart, aEnd);
+      ctx.strokeStyle = 'rgba(130,88,195,0.42)'; ctx.lineWidth = S*0.002; ctx.stroke();
+
+      // Ribosome dots — fixed 8 per arc, constant angular step, aligned radially across layers
+      const nRib    = 8;
+      const angStep = (aEnd - aStart) / (nRib - 1);
+      for (let j = 0; j < nRib; j++) {
+        const ang = aStart + j * angStep + (i * angStep * 0.5);
+        const rx  = NUC_CX + (r + tOuter + S*0.008) * Math.cos(ang);
+        const ry  = NUC_CY + (r + tOuter + S*0.008) * Math.sin(ang);
+        ctx.beginPath(); ctx.arc(rx, ry, S*0.0062, 0, Math.PI*2);
+        ctx.fillStyle = 'rgba(255,138,195,0.97)'; ctx.fill();
+        ctx.beginPath(); ctx.arc(rx - S*0.0018, ry - S*0.0018, S*0.0024, 0, Math.PI*2);
+        ctx.fillStyle = 'rgba(255,230,248,0.72)'; ctx.fill();
+      }
+    }
+
+    ctx.restore();
+  }
+
+  // ── Nucleus ───────────────────────────────────────────────────
+  // Grey-blue body with bright rim — matches reference's grey nucleus
+  const nucGr = ctx.createRadialGradient(NUC_CX-nucR*0.22, NUC_CY-nucR*0.18, 0, NUC_CX, NUC_CY, nucR);
+  nucGr.addColorStop(0,   'rgba(130,150,190,0.72)');
+  nucGr.addColorStop(0.55,'rgba(90,110,165,0.62)');
+  nucGr.addColorStop(1,   'rgba(50,65,120,0.55)');
+  ctx.fillStyle = nucGr;
+  ctx.beginPath(); ctx.arc(NUC_CX, NUC_CY, nucR, 0, Math.PI*2); ctx.fill();
+
+  // Outer glow halo
+  const nucHalo = ctx.createRadialGradient(NUC_CX, NUC_CY, nucR*0.88, NUC_CX, NUC_CY, nucR*1.18);
+  nucHalo.addColorStop(0, 'rgba(140,160,230,0.20)');
+  nucHalo.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = nucHalo;
+  ctx.beginPath(); ctx.arc(NUC_CX, NUC_CY, nucR*1.18, 0, Math.PI*2); ctx.fill();
+
+  // Nuclear envelope + embedded NPCs
+  // Strategy: draw full double membrane, then per pore:
+  //   1. Erase (overdraw bg) a gap in both rings
+  //   2. Draw the NPC barrel cross-section filling that gap
+  //   3. Reconnect membrane stubs up to the barrel edge
+
+  const nPores      = 6;
+  const poreHalfArc = 0.068;          // radians half-gap cut in each membrane arc
+
+  // Distribute pores evenly around the full circle
+  const poreAngles = [];
+  for (let pi = 0; pi < nPores; pi++) {
+    poreAngles.push((Math.PI * 2 * pi) / nPores + Math.PI * 0.20);
+  }
+
+  // ── 1. Full double-membrane arcs, broken at each pore ────────────
+  // Walk sorted pore angles; draw the clockwise arc from trailing edge of
+  // pore[si] to leading edge of pore[si+1], wrapping correctly on the last segment.
+  const drawMembrane = (r, strokeStyle, lw) => {
+    ctx.strokeStyle = strokeStyle; ctx.lineWidth = lw;
+    const sorted = [...poreAngles].sort((a, b) => a - b);
+    const n = sorted.length;
+    for (let si = 0; si < n; si++) {
+      const arcStart = sorted[si] + poreHalfArc;
+      const nextAng  = si < n - 1 ? sorted[si + 1] : sorted[0] + Math.PI * 2;
+      const arcEnd   = nextAng - poreHalfArc;
+      if (arcEnd <= arcStart) continue;
+      ctx.beginPath();
+      ctx.arc(NUC_CX, NUC_CY, r, arcStart, arcEnd);
+      ctx.stroke();
+    }
+  };
+
+  drawMembrane(nucR,           'rgba(150,170,230,0.70)', S*0.0070);
+  drawMembrane(nucR - S*0.009, 'rgba(120,140,210,0.38)', S*0.004);
+
+  // ── 2. NPC barrels embedded in the gap ───────────────────────────
+  for (let pi = 0; pi < nPores; pi++) {
+    const ang = poreAngles[pi];
+    // Centre of pore on the membrane
+    const px = NUC_CX + nucR * Math.cos(ang);
+    const py = NUC_CY + nucR * Math.sin(ang);
+
+    // Radial unit vector (outward) and tangent
+    const rx = Math.cos(ang), ry = Math.sin(ang);   // radial outward
+    const tx = -Math.sin(ang), ty = Math.cos(ang);  // tangent (perpendicular)
+
+    // Membrane half-thickness (span between inner and outer ring)
+    const memSpan = S * 0.009;   // ≈ gap between the two rings
+    const halfSpan = memSpan / 2;
+
+    ctx.save();
+
+    // ── Outer cytoplasmic ring (sits just outside outer membrane) ──
+    const outerRim = S * 0.0062;
+    const rimCX = px + rx * (halfSpan + outerRim * 0.55);
+    const rimCY = py + ry * (halfSpan + outerRim * 0.55);
+    ctx.shadowColor = 'rgba(0,240,210,0.70)'; ctx.shadowBlur = S * 0.014;
+    ctx.beginPath(); ctx.arc(rimCX, rimCY, outerRim, 0, Math.PI*2);
+    ctx.strokeStyle = 'rgba(0,220,190,0.92)'; ctx.lineWidth = S * 0.003; ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // ── Inner nuclear ring (sits just inside inner membrane) ──
+    const innerRim = S * 0.0055;
+    const rimIX = px - rx * (halfSpan + innerRim * 0.55);
+    const rimIY = py - ry * (halfSpan + innerRim * 0.55);
+    ctx.beginPath(); ctx.arc(rimIX, rimIY, innerRim, 0, Math.PI*2);
+    ctx.strokeStyle = 'rgba(0,200,175,0.72)'; ctx.lineWidth = S * 0.0025; ctx.stroke();
+
+    // ── Channel fill (perinuclear lumen bridged by the barrel) ──
+    // Rectangle oriented along the radial direction
+    const halfT = S * 0.0048;   // tangential half-width of channel
+    ctx.beginPath();
+    ctx.moveTo(px + rx * (halfSpan + outerRim*1.1) + tx * halfT,
+               py + ry * (halfSpan + outerRim*1.1) + ty * halfT);
+    ctx.lineTo(px + rx * (halfSpan + outerRim*1.1) - tx * halfT,
+               py + ry * (halfSpan + outerRim*1.1) - ty * halfT);
+    ctx.lineTo(px - rx * (halfSpan + innerRim*1.1) - tx * halfT,
+               py - ry * (halfSpan + innerRim*1.1) - ty * halfT);
+    ctx.lineTo(px - rx * (halfSpan + innerRim*1.1) + tx * halfT,
+               py - ry * (halfSpan + innerRim*1.1) + ty * halfT);
+    ctx.closePath();
+    // Dark aqueous channel
+    ctx.fillStyle = 'rgba(0,15,35,0.78)'; ctx.fill();
+    // Faint side walls
+    ctx.strokeStyle = 'rgba(0,180,160,0.55)'; ctx.lineWidth = S * 0.0020; ctx.stroke();
+
+    // ── Central transport plug (FG-nucleoporin mesh) ──
+    const plugR = S * 0.0030;
+    ctx.beginPath(); ctx.arc(px, py, plugR, 0, Math.PI*2);
+    const plugGr = ctx.createRadialGradient(px, py, 0, px, py, plugR);
+    plugGr.addColorStop(0, 'rgba(185,255,245,1.0)');
+    plugGr.addColorStop(1, 'rgba(0,200,180,0.55)');
+    ctx.fillStyle = plugGr; ctx.fill();
+
+    // ── Spoke hint: 4 short radial lines from plug to inner ring ──
+    ctx.strokeStyle = 'rgba(0,210,185,0.32)'; ctx.lineWidth = S * 0.0012;
+    for (let sp = 0; sp < 4; sp++) {
+      const spAng = ang + sp * Math.PI * 0.5;
+      ctx.beginPath();
+      ctx.moveTo(px + Math.cos(spAng) * plugR,
+                 py + Math.sin(spAng) * plugR);
+      ctx.lineTo(px + Math.cos(spAng) * halfT * 0.88,
+                 py + Math.sin(spAng) * halfT * 0.88);
+      ctx.stroke();
+    }
+
+    ctx.restore();
+  }
+
+  const nloA = clamp((zoomT - 0.60) / 0.20, 0, 1);
+  if (nloA > 0) {
+    ctx.save(); ctx.globalAlpha *= nloA;
+    const nloX = NUC_CX + nucR*0.05, nloY = NUC_CY + nucR*0.08, nloR = nucR*0.40;
+    const nloGr = ctx.createRadialGradient(nloX - nloR*0.2, nloY - nloR*0.2, 0, nloX, nloY, nloR);
+    nloGr.addColorStop(0, 'rgba(90,85,145,0.92)');
+    nloGr.addColorStop(1, 'rgba(55,50,110,0.82)');
+    ctx.fillStyle = nloGr;
+    ctx.beginPath(); ctx.ellipse(nloX, nloY, nloR, nloR*0.78, -0.3, 0, Math.PI*2); ctx.fill();
+    // Subtle darker border to make it pop against nucleus body
+    ctx.strokeStyle = 'rgba(60,50,120,0.70)'; ctx.lineWidth = S*0.004; ctx.stroke();
+    ctx.restore();
+  }
+
+  // ── Smooth ER — delicate tubular network spanning cytoplasm ─────
+  // Thin interconnected bezier tubes weaving between organelles,
+  // very subtle lavender — reads as background texture, not dominant
+  const serA = clamp((p8 - 0.44) / 0.20, 0, 1);
+  if (serA > 0) {
+    ctx.save(); ctx.globalAlpha = serA * 0.72;
+
+    // All tubes defined as [x1,y1, cp1x,cp1y, cp2x,cp2y, x2,y2]
+    // Anchored to NUC_CX/NUC_CY so they scale with layout
+    // Carefully routed: left cytoplasm, lower cytoplasm, upper-right —
+    // avoiding nucleus (centre), RER (right+top of nucleus), Golgi (lower-right), mito (upper-left)
+    const tubes = [
+      // ── Left cytoplasm — sweeping arcs below mitochondria ──
+      [ NUC_CX-NF*2.80, NUC_CY+NF*0.60,  NUC_CX-NF*2.20, NUC_CY+NF*1.10,  NUC_CX-NF*1.60, NUC_CY+NF*0.80,  NUC_CX-NF*1.10, NUC_CY+NF*1.20 ],
+      [ NUC_CX-NF*2.60, NUC_CY+NF*1.00,  NUC_CX-NF*2.00, NUC_CY+NF*1.60,  NUC_CX-NF*1.40, NUC_CY+NF*1.30,  NUC_CX-NF*0.90, NUC_CY+NF*1.70 ],
+      [ NUC_CX-NF*2.40, NUC_CY-NF*0.10,  NUC_CX-NF*2.80, NUC_CY+NF*0.50,  NUC_CX-NF*2.60, NUC_CY+NF*1.20,  NUC_CX-NF*2.20, NUC_CY+NF*1.50 ],
+
+      // ── Lower cytoplasm — horizontal sweeps ──
+      [ NUC_CX-NF*0.80, NUC_CY+NF*2.00,  NUC_CX-NF*0.10, NUC_CY+NF*2.50,  NUC_CX+NF*0.50, NUC_CY+NF*2.30,  NUC_CX+NF*1.10, NUC_CY+NF*2.60 ],
+      [ NUC_CX-NF*1.20, NUC_CY+NF*2.30,  NUC_CX-NF*0.50, NUC_CY+NF*2.80,  NUC_CX+NF*0.20, NUC_CY+NF*2.70,  NUC_CX+NF*0.80, NUC_CY+NF*2.40 ],
+      [ NUC_CX+NF*0.60, NUC_CY+NF*2.10,  NUC_CX+NF*1.00, NUC_CY+NF*2.55,  NUC_CX+NF*1.30, NUC_CY+NF*2.20,  NUC_CX+NF*1.60, NUC_CY+NF*2.50 ],
+
+      // ── Upper cytoplasm — above nucleus, curving gently ──
+      [ NUC_CX-NF*0.60, NUC_CY-NF*2.00,  NUC_CX+NF*0.10, NUC_CY-NF*2.50,  NUC_CX+NF*0.80, NUC_CY-NF*2.20,  NUC_CX+NF*1.40, NUC_CY-NF*1.80 ],
+      [ NUC_CX-NF*0.20, NUC_CY-NF*2.30,  NUC_CX+NF*0.50, NUC_CY-NF*2.70,  NUC_CX+NF*1.10, NUC_CY-NF*2.40,  NUC_CX+NF*1.70, NUC_CY-NF*2.00 ],
+
+      // ── Cross-links — short connectors between tubes (junction web feel) ──
+      [ NUC_CX-NF*2.00, NUC_CY+NF*1.10,  NUC_CX-NF*1.70, NUC_CY+NF*1.50,  NUC_CX-NF*1.20, NUC_CY+NF*1.60,  NUC_CX-NF*0.90, NUC_CY+NF*1.70 ],
+      [ NUC_CX-NF*1.10, NUC_CY+NF*1.20,  NUC_CX-NF*0.80, NUC_CY+NF*1.70,  NUC_CX-NF*0.40, NUC_CY+NF*1.90,  NUC_CX-NF*0.10, NUC_CY+NF*2.10 ],
+      [ NUC_CX+NF*0.40, NUC_CY-NF*1.80,  NUC_CX+NF*0.90, NUC_CY-NF*1.50,  NUC_CX+NF*1.20, NUC_CY-NF*1.20,  NUC_CX+NF*1.50, NUC_CY-NF*0.90 ],
+    ];
+
+    // Draw tubes — thin, glowing lavender
+    ctx.strokeStyle = 'rgba(168,118,225,0.72)';
+    ctx.lineWidth   = S * 0.0042;
+    ctx.lineCap     = 'round';
+    tubes.forEach(([x1,y1,cp1x,cp1y,cp2x,cp2y,x2,y2]) => {
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, x2, y2);
+      ctx.stroke();
+    });
+
+    // Junction nodes — small filled dots where tubes visually intersect
+    const nodes = [
+      [ NUC_CX-NF*2.20, NUC_CY+NF*1.10 ],
+      [ NUC_CX-NF*1.60, NUC_CY+NF*0.80 ],
+      [ NUC_CX-NF*1.10, NUC_CY+NF*1.20 ],
+      [ NUC_CX-NF*0.90, NUC_CY+NF*1.70 ],
+      [ NUC_CX-NF*0.10, NUC_CY+NF*2.10 ],
+      [ NUC_CX+NF*0.80, NUC_CY+NF*2.40 ],
+      [ NUC_CX+NF*1.40, NUC_CY-NF*1.80 ],
+      [ NUC_CX+NF*0.90, NUC_CY-NF*1.50 ],
+    ];
+    ctx.fillStyle = 'rgba(188,138,235,0.70)';
+    nodes.forEach(([nx, ny]) => {
+      ctx.beginPath(); ctx.arc(nx, ny, S*0.0048, 0, Math.PI*2); ctx.fill();
+    });
+
+    ctx.restore();
+  }
+
+  // ── Golgi apparatus — lower-right, flat horizontal ribbon cisternae ─
+  // Reference: stacked horizontal slabs, each bows upward (smile shape ⌣),
+  // wider at cis (top) tapering to narrower at trans (bottom), lavender-pink
+  const golgiA = clamp((p8 - 0.52) / 0.18, 0, 1);
+  if (golgiA > 0) {
+    ctx.save(); ctx.globalAlpha = golgiA;
+
+    // Anchor: lower-right of nucleus, clear of Smooth ER
+    const gCX = NUC_CX + NF*1.80;
+    const gCY = NUC_CY + NF*1.05;
+
+    // Axis angle: nucleus → Golgi → plasma membrane
+    // Cis face rotated to point at nucleus (−local y), trans toward plasma membrane (+local y)
+    const gAngle = Math.atan2(gCY - NUC_CY, gCX - NUC_CX);
+
+    const nCis   = 5;
+    const cisGap = NF * 0.175;
+
+    // Draw one ribbon cisterna in LOCAL (rotated) coords — centred at (cx, cy)
+    function drawRibbon(cx, cy, hw, bow, lumenH) {
+      const lx = cx - hw, rx = cx + hw;
+      const cpOutY = cy - bow;                    // bow toward cis face (−y = toward nucleus)
+      const cpInY  = cy - bow * 0.30 + lumenH;
+      ctx.beginPath();
+      ctx.moveTo(lx, cy);
+      ctx.quadraticCurveTo(cx, cpOutY, rx, cy);
+      ctx.quadraticCurveTo(cx, cpInY,  lx, cy);
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(195,148,225,0.28)'; ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(lx, cy);
+      ctx.quadraticCurveTo(cx, cpOutY, rx, cy);
+      ctx.strokeStyle = 'rgba(158,100,218,0.90)'; ctx.lineWidth = S*0.0055; ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(lx + hw*0.08, cy - bow*0.02 + lumenH*0.5);
+      ctx.quadraticCurveTo(cx, cpInY - lumenH*0.15, rx - hw*0.08, cy - bow*0.02 + lumenH*0.5);
+      ctx.strokeStyle = 'rgba(128,78,195,0.42)'; ctx.lineWidth = S*0.003; ctx.stroke();
+    }
+
+    // Enter local Golgi coordinate space
+    // Rotate by (gAngle − π/2) so local +y points nucleus→PM and local −y points toward nucleus
+    ctx.save(); ctx.translate(gCX, gCY); ctx.rotate(gAngle - Math.PI * 0.5);
+
+    // Stack centred at origin: cis (i=0) at −y (nucleus side), trans (i=4) at +y (PM side)
+    const stackHalf = (nCis - 1) * cisGap / 2;   // distance from centre to outermost cisterna
+    for (let i = 0; i < nCis; i++) {
+      const t      = i / (nCis - 1);
+      const hw     = NF * (0.72 - t * 0.22);      // cis widest → trans narrowest
+      const bow    = NF * (0.14 + t * 0.04);
+      const lumenH = NF * 0.072;
+      const yOff   = -stackHalf + i * cisGap;     // negative = cis side (toward nucleus)
+      drawRibbon(0, yOff, hw, bow, lumenH);
+    }
+
+    // Cis-face vesicles — small/light, on the nucleus side (−y)
+    const cisY = -stackHalf - NF*0.18;
+    [
+      { dx: -NF*0.42, dy: -NF*0.20 },
+      { dx:  NF*0.10, dy: -NF*0.24 },
+      { dx:  NF*0.50, dy: -NF*0.16 },
+    ].forEach(({ dx, dy }) => {
+      ctx.beginPath(); ctx.arc(dx, cisY + dy, S*0.008, 0, Math.PI*2);
+      ctx.fillStyle   = 'rgba(195,148,225,0.14)'; ctx.fill();
+      ctx.strokeStyle = 'rgba(158,100,218,0.55)'; ctx.lineWidth = S*0.003; ctx.stroke();
+    });
+
+    // Trans-face vesicles — larger/brighter, on the plasma-membrane side (+y)
+    const transY = stackHalf + NF*0.18;
+    [
+      { dx: -NF*0.38, dy:  NF*0.18 },
+      { dx:  NF*0.05, dy:  NF*0.22 },
+      { dx:  NF*0.44, dy:  NF*0.16 },
+    ].forEach(({ dx, dy }) => {
+      ctx.beginPath(); ctx.arc(dx, transY + dy, S*0.014, 0, Math.PI*2);
+      ctx.fillStyle   = 'rgba(210,158,240,0.42)'; ctx.fill();
+      ctx.strokeStyle = 'rgba(168,110,228,0.95)'; ctx.lineWidth = S*0.005; ctx.stroke();
+    });
+
+    ctx.restore(); // end local Golgi transform
+
+    ctx.textAlign = 'left'; ctx.restore();
+  }
+
+  // ── Mitochondria — solid pink, horizontal cristae, 2 upper-left ──
+  // Reference: warm pink fill, horizontal parallel lines inside, clear double membrane
+  const mitoA = clamp((p8 - 0.59) / 0.18, 0, 1);
+  if (mitoA > 0) {
+    ctx.save(); ctx.globalAlpha = mitoA;
+    const mPos = [
+      { x: NUC_CX - NF*2.10, y: NUC_CY - NF*1.10, a: -0.38, rxi: NF*0.42, ryi: NF*0.20 },
+      { x: NUC_CX - NF*2.00, y: NUC_CY - NF*0.35, a:  0.22, rxi: NF*0.38, ryi: NF*0.18 },
+    ];
+    mPos.forEach((m) => {
+      ctx.save(); ctx.translate(m.x, m.y); ctx.rotate(m.a);
+      const rx = m.rxi, ry = m.ryi;
+
+      // ── Outer membrane — organic bean-shape via bezier (tapered poles) ──
+      ctx.beginPath();
+      ctx.moveTo(-rx, 0);
+      ctx.bezierCurveTo(-rx, -ry * 1.08,  rx * 0.35, -ry * 1.12,  rx, 0);
+      ctx.bezierCurveTo( rx,  ry * 1.08, -rx * 0.35,  ry * 1.12, -rx, 0);
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(215,130,160,0.82)'; ctx.fill();
+      ctx.strokeStyle = 'rgba(200,110,145,0.95)'; ctx.lineWidth = S*0.005; ctx.stroke();
+
+      // ── Matrix fill — lighter pink; contrast with outer = visible IMS ring ──
+      const imR = 0.76, imRy = 0.70;
+      ctx.beginPath(); ctx.ellipse(0, 0, rx*imR, ry*imRy, 0, 0, Math.PI*2);
+      ctx.fillStyle = 'rgba(240,170,192,0.82)'; ctx.fill();
+
+      // ── Cristae — transverse folds, clipped to matrix ellipse ──
+      ctx.save();
+      ctx.beginPath(); ctx.ellipse(0, 0, rx*imR, ry*imRy, 0, 0, Math.PI*2); ctx.clip();
+      const nCristae = 5;
+      ctx.strokeStyle = 'rgba(140,55,85,0.92)'; ctx.lineWidth = S*0.006; ctx.lineCap = 'round';
+      for (let k = 0; k < nCristae; k++) {
+        const xLine = rx * (-0.56 + (k / (nCristae - 1)) * 1.12);
+        const ySpan = ry * imRy * 0.82 * Math.sqrt(Math.max(0, 1 - (xLine / rx) ** 2));
+        if (ySpan < 1) continue;
+        const bow = rx * 0.038 * (k % 2 === 0 ? 1 : -1);
+        ctx.beginPath();
+        ctx.moveTo(xLine, -ySpan);
+        ctx.quadraticCurveTo(xLine + bow, 0, xLine, ySpan);
+        ctx.stroke();
+      }
+      ctx.lineCap = 'butt'; ctx.restore();
+
+      // ── Inner membrane stroke — on top of cristae, IMS gap clearly visible ──
+      ctx.beginPath(); ctx.ellipse(0, 0, rx*imR, ry*imRy, 0, 0, Math.PI*2);
+      ctx.strokeStyle = 'rgba(175,85,120,0.82)'; ctx.lineWidth = S*0.0048; ctx.stroke();
+
+      ctx.restore();
+    });
+    ctx.restore();
+  }
+
+  // ── Cytoskeleton filaments — very faint ───────────────────────
+  const cytoskA = clamp((p8 - 0.54) / 0.24, 0, 1) * 0.20;
+  if (cytoskA > 0) {
+    ctx.save(); ctx.globalAlpha = cytoskA;
+    ctx.strokeStyle = 'rgba(140,180,240,1)'; ctx.lineWidth = S*0.0038;
+    ctx.setLineDash([S*0.022, S*0.016]);
+    [
+      [CX-CELL_R*0.80, CY-CELL_R*0.20, NUC_CX-NF*1.60, NUC_CY+NF*0.10, CX-CELL_R*0.65, CY+CELL_R*0.50],
+      [CX+CELL_R*0.76, CY-CELL_R*0.30, NUC_CX+NF*1.80, NUC_CY-NF*0.40, CX+CELL_R*0.56, CY+CELL_R*0.56],
+      [CX-CELL_R*0.35, CY-CELL_R*0.74, CX,              NUC_CY-NF*1.50, CX+CELL_R*0.46, CY-CELL_R*0.60],
+      [CX-CELL_R*0.56, CY+CELL_R*0.60, NUC_CX-NF*0.20, NUC_CY+NF*1.80, CX+CELL_R*0.50, CY+CELL_R*0.56],
+    ].forEach(([x1,y1,cx2,cy2,x2,y2]) => {
+      ctx.beginPath(); ctx.moveTo(x1,y1); ctx.quadraticCurveTo(cx2,cy2,x2,y2); ctx.stroke();
+    });
+    ctx.setLineDash([]); ctx.restore();
+  }
+
+  // ── Plasma membrane drawn AFTER clip restore so outer heads sit outside cell ──
+  // (actual drawing deferred — stored as a closure called below after ctx.restore())
+
+  // ── Ribosomal subunits — Brownian motion in cytoplasm ────────
+  if (p8 > 0.52 && p8sub40 && p8sub60) {
+    const subA = clamp((p8 - 0.52) / 0.12, 0, 1);
+    ctx.save(); ctx.globalAlpha = subA;
+
+    // pre-40S
+    ctx.save(); ctx.translate(p8sub40.x, p8sub40.y); ctx.scale(0.38, 0.38);
+    draw18SScaffold(0, 0, 1.5); drawSubunitProteinCloud(0, 0, 22, 195, 1);
+    ctx.restore();
+
+    // pre-60S
+    ctx.save(); ctx.translate(p8sub60.x, p8sub60.y); ctx.scale(0.47, 0.47);
+    draw28SScaffold(0, 0, 1.5); drawSubunitProteinCloud(0, 0, 28, 30, 1);
+    ctx.restore();
+
+    ctx.restore(); // end subA
+  }
+
+  ctx.restore(); // end fadeIn — clip is now released
+
+  // ── Plasma membrane — drawn OUTSIDE clip so outer heads are fully visible ──
+  // Outer leaflet: pink heads pointing OUTWARD (beyond CELL_R), tails inward
+  // Inner leaflet: pink heads pointing INWARD, tails outward — both meet at midline
+  if (memA > 0) {
+    ctx.save(); ctx.globalAlpha = fadeIn * memA;
+
+    const nMols      = 120;
+    const headR      = S * 0.0058;      // pink sphere radius
+    const tailLen    = S * 0.0160;      // tail length
+    const tailSpread = S * 0.0048;      // fork spread between the two tails
+    const bilayerW   = headR * 2 + tailLen * 2;
+
+    // Outer heads sit OUTSIDE the cell boundary
+    const rOHead = CELL_R + headR;              // centre of outer head spheres
+    const rIHead = CELL_R - bilayerW + headR;   // centre of inner head spheres
+    const rMid   = CELL_R - headR - tailLen;    // midline where tail tips meet
+
+    // ── Golden tails (drawn first, behind heads) ─────────────────
+    ctx.strokeStyle = 'rgba(210,155,60,0.85)';
+    ctx.lineWidth   = S * 0.0018;
+    ctx.lineCap     = 'round';
+
+    for (let i = 0; i < nMols; i++) {
+      const a  = (i / nMols) * Math.PI * 2;
+      const ca = Math.cos(a), sa = Math.sin(a);
+      const ta = -sa, tb = ca; // tangent for fork spread
+
+      // outer leaflet tails: root just inside outer head, tip at midline
+      const oRoot = rOHead - headR * 1.0;
+      ctx.beginPath();
+      ctx.moveTo(CX + oRoot*ca + ta*tailSpread*0.4, CY + oRoot*sa + tb*tailSpread*0.4);
+      ctx.lineTo(CX + rMid*ca  + ta*tailSpread,     CY + rMid*sa  + tb*tailSpread);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(CX + oRoot*ca - ta*tailSpread*0.4, CY + oRoot*sa - tb*tailSpread*0.4);
+      ctx.lineTo(CX + rMid*ca  - ta*tailSpread,     CY + rMid*sa  - tb*tailSpread);
+      ctx.stroke();
+
+      // inner leaflet tails: root just outside inner head, tip at midline
+      const iRoot = rIHead + headR * 1.0;
+      ctx.beginPath();
+      ctx.moveTo(CX + iRoot*ca + ta*tailSpread*0.4, CY + iRoot*sa + tb*tailSpread*0.4);
+      ctx.lineTo(CX + rMid*ca  + ta*tailSpread,     CY + rMid*sa  + tb*tailSpread);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(CX + iRoot*ca - ta*tailSpread*0.4, CY + iRoot*sa - tb*tailSpread*0.4);
+      ctx.lineTo(CX + rMid*ca  - ta*tailSpread,     CY + rMid*sa  - tb*tailSpread);
+      ctx.stroke();
+    }
+
+    // ── Outer heads — pink/mauve spheres, pointing outward ───────
+    for (let i = 0; i < nMols; i++) {
+      const a  = (i / nMols) * Math.PI * 2;
+      const hx = CX + rOHead * Math.cos(a);
+      const hy = CY + rOHead * Math.sin(a);
+      const gr = ctx.createRadialGradient(hx - headR*0.3, hy - headR*0.3, 0, hx, hy, headR);
+      gr.addColorStop(0,   'rgba(245,180,205,1.0)');
+      gr.addColorStop(0.5, 'rgba(215,135,170,0.95)');
+      gr.addColorStop(1,   'rgba(178,88,135,0.88)');
+      ctx.fillStyle = gr;
+      ctx.beginPath(); ctx.arc(hx, hy, headR, 0, Math.PI*2); ctx.fill();
+    }
+
+    // ── Inner heads — pink/mauve spheres, pointing inward ────────
+    for (let i = 0; i < nMols; i++) {
+      const a  = (i / nMols) * Math.PI * 2;
+      const hx = CX + rIHead * Math.cos(a);
+      const hy = CY + rIHead * Math.sin(a);
+      const gr = ctx.createRadialGradient(hx - headR*0.3, hy - headR*0.3, 0, hx, hy, headR);
+      gr.addColorStop(0,   'rgba(245,180,205,1.0)');
+      gr.addColorStop(0.5, 'rgba(215,135,170,0.95)');
+      gr.addColorStop(1,   'rgba(178,88,135,0.88)');
+      ctx.fillStyle = gr;
+      ctx.beginPath(); ctx.arc(hx, hy, headR, 0, Math.PI*2); ctx.fill();
+    }
+
+    ctx.restore();
+  }
+}
+
+
+function init(){
+  applySize();
+  // Start all phase-cards hidden, then reveal phase 0 after first paint
+  document.querySelectorAll('.phase-card').forEach(c => c.classList.add('hidden'));
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => updateCardsForPhase(0));
+  });
+  render();
+}
+// ── Organelle calling card ────────────────────────────────────────
+const ORGANELLE_INFO = {
+  nucleus: {
+    name: 'Nucleus',
+    tag:  'Control Centre',
+    desc: 'Houses the cell\'s DNA and is the site of transcription. Bounded by a double membrane (nuclear envelope) perforated by nuclear pore complexes (NPCs) that regulate export of RNA and ribosomal subunits to the cytoplasm.'
+  },
+  rer: {
+    name: 'Rough ER',
+    tag:  'Protein Factory',
+    desc: 'Membrane-bound cisternae studded with ribosomes. Newly synthesised secretory and membrane proteins enter the RER lumen for initial folding and glycosylation before transit to the Golgi.'
+  },
+  ser: {
+    name: 'Smooth ER',
+    tag:  'Lipid & Detox Hub',
+    desc: 'Ribosome-free tubular network continuous with the rough ER. Responsible for lipid and phospholipid synthesis, steroid hormone production, calcium storage, and detoxification of drugs and metabolic waste.'
+  },
+  golgi: {
+    name: 'Golgi Apparatus',
+    tag:  'Sorting & Dispatch',
+    desc: 'Receives vesicles at the cis face (nucleus side), chemically modifies and sorts cargo through stacked cisternae, then dispatches mature secretory vesicles from the trans face toward the plasma membrane.'
+  },
+  mitochondria: {
+    name: 'Mitochondria',
+    tag:  'ATP Powerhouse',
+    desc: 'Site of aerobic respiration. The inner membrane folds into cristae, maximising surface area for the electron transport chain and ATP synthase. Contains its own circular DNA — evidence of endosymbiotic origin.'
+  },
+  pre40s: {
+    name: 'Pre-40S Subunit',
+    tag:  'Small Ribosomal Subunit',
+    desc: 'Contains 18S rRNA (~1.5 kb) and ~33 ribosomal proteins. Exported through the NPC and finalises maturation in the cytoplasm. Decodes mRNA codons during translation by pairing with tRNA anticodons.'
+  },
+  pre60s: {
+    name: 'Pre-60S Subunit',
+    tag:  'Large Ribosomal Subunit',
+    desc: 'Contains 28S, 5.8S, and 5S rRNA with ~49 ribosomal proteins. After NPC export, joins the 40S subunit and mRNA to form the 80S ribosome — the molecular machine that synthesises all cellular protein.'
+  }
+};
+
+function showOrganelleCard(key, clientX, clientY) {
+  const info = ORGANELLE_INFO[key];
+  if (!info) return;
+  const card  = document.getElementById('organelle-card');
+  document.getElementById('ocard-title').textContent = info.name;
+  document.getElementById('ocard-body').textContent  = info.desc;
+  document.getElementById('ocard-tag').textContent   = info.tag;
+  // Position near click, clamped to viewport
+  const W = 280, margin = 12;
+  const vw = window.innerWidth, vh = window.innerHeight;
+  let left = clientX + 14, top = clientY + 14;
+  if (left + W > vw - margin) left = clientX - W - 14;
+  if (top + 220 > vh - margin) top  = Math.max(margin, clientY - 220 - 14);
+  card.style.left = left + 'px';
+  card.style.top  = top  + 'px';
+  card.classList.remove('hidden');
+}
+
+document.getElementById('ocard-close').addEventListener('click', () => {
+  document.getElementById('organelle-card').classList.add('hidden');
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') document.getElementById('organelle-card').classList.add('hidden');
+});
+
+window.addEventListener('resize',()=>{ applySize(); if (phase === 8) initPhase8(); });
+init();
+</script>
+</body>
+</html>
