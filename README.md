@@ -4,42 +4,44 @@
 
 # 🧬 Karyon
 
-Interactive HTML5 visualization library demonstrating molecular biology processes including transcription, ribosome biogenesis, and nuclear export.
+### *Interactive Molecular Biology Visualization Library*
+
+> An interactive HTML5 visualization library demonstrating molecular biology processes including transcription, ribosome biogenesis, and nuclear export.
+
+**🧬 Molecular Biology · 🧪 Transcription · 🔬 Cellular Processes**
 
 ---
 
-## ✨ Features
+## ✦ Features
 
-* **Scientific Visualizations:** Interactive simulations of molecular and cellular processes.
-* **Current Module:** RNA Polymerase I-mediated rDNA transcription and pre-rRNA processing.
-* **Educational Workflow:** Browser-based interface designed for biology education and scientific communication.
-* **Responsive Design:** Optimized for desktop and mobile devices.
+**🧬 Scientific Visualizations**  
+Explore interactive simulations of molecular and cellular processes.
 
----
+**🧪 rDNA Transcription**  
+Visualize RNA Polymerase I-mediated rDNA transcription and pre-rRNA processing.
 
-## 🚀 Built With & Hosted On
+**🔬 Educational Workflow**  
+Explore molecular biology concepts through an interactive browser-based interface.
 
-* **Technology:** HTML5 Canvas, CSS3 & JavaScript
-* **Hosting:** GitHub Pages
-
----
-
-## 🛠️ Credits & Acknowledgments
-
-* **Moonshot AI:** Initial draft & concept exploration.
-* **Claude:** Code architecture & implementation.
-* **Replit:** Debugging & rapid prototyping.
-* **OpenAI:** Scientific debugging, testing & prompt refinement.
+**📱 Responsive Design**  
+Optimized for desktop and mobile devices.
 
 ---
 
-## 👤 Author
+## 🧬 Core Concepts
 
-**Draven-Ashcroft**  
-DIPS Chain of Institutions, Tanda
+**rDNA Transcription · RNA Polymerase I · Pre-rRNA Processing · Ribosome Biogenesis · Nuclear Export**
+
+---
+
+## ⚙️ Technology
+
+**HTML5 Canvas · CSS3 · JavaScript**
+
+**Hosting:** GitHub Pages
 
 ---
 
 ## 📜 License
 
-GPL-3.0
+**GNU General Public License v3.0 (GPL-3.0)**
