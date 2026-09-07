@@ -8,7 +8,7 @@
 
 > **Karyon** is an interactive visualization library exploring **transcription, ribosome biogenesis, and nuclear export**.
 >
-> 🧬 **Molecular Biology** · 🧪 **Transcription** · 🔬 **Cellular Processes**
+ 🧬 **Molecular Biology** · 🧪 **Transcription** · 🔬 **Cellular Processes**
 
 **🔬 [Explore the Simulation](YOUR-LINK-HERE)**
 
@@ -44,7 +44,7 @@ Optimized for modern desktop and mobile devices.
 **HTML5 Canvas · CSS3 · JavaScript**
 
 **Repository:** GitHub & Codeberg  
-**Hosting:** GitHub Pages
+**Hosting:** Cloudflare
 
 ---
 
