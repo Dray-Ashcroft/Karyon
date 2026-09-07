@@ -1,14 +1,16 @@
 <p align="center">
-  <img src="assets/repo-banner.png" alt="Karyon Banner" width="100%">
+  <img src="assets/repo-banner.png" alt="Karyon — Interactive Molecular Biology Visualization Library" width="100%">
 </p>
 
 # 🧬 Karyon
 
 ### *Interactive Molecular Biology Visualization Library*
 
-> An interactive HTML5 visualization library demonstrating molecular biology processes including transcription, ribosome biogenesis, and nuclear export.
+> **Karyon** is an interactive visualization library exploring **transcription, ribosome biogenesis, and nuclear export**.
+>
+> 🧬 **Molecular Biology** · 🧪 **Transcription** · 🔬 **Cellular Processes**
 
-**🧬 Molecular Biology · 🧪 Transcription · 🔬 Cellular Processes**
+**🔬 [Explore the Simulation](YOUR-LINK-HERE)**
 
 ---
 
@@ -20,17 +22,20 @@ Explore interactive simulations of molecular and cellular processes.
 **🧪 rDNA Transcription**  
 Visualize RNA Polymerase I-mediated rDNA transcription and pre-rRNA processing.
 
-**🔬 Educational Workflow**  
-Explore molecular biology concepts through an interactive browser-based interface.
+**🔬 Ribosome Biogenesis**  
+Explore pre-rRNA processing and ribosome assembly.
+
+**🚀 Nuclear Export**  
+Visualize the transport of ribosomal subunits from the nucleus.
 
 **📱 Responsive Design**  
-Optimized for desktop and mobile devices.
+Optimized for modern desktop and mobile devices.
 
 ---
 
 ## 🧬 Core Concepts
 
-**rDNA Transcription · RNA Polymerase I · Pre-rRNA Processing · Ribosome Biogenesis · Nuclear Export**
+**rDNA Transcription · RNA Polymerase I · Pre-rRNA Processing · Ribosome Biogenesis · Nuclear Export · Ribosomal Subunits**
 
 ---
 
@@ -38,10 +43,11 @@ Optimized for desktop and mobile devices.
 
 **HTML5 Canvas · CSS3 · JavaScript**
 
+**Repository:** GitHub & Codeberg  
 **Hosting:** GitHub Pages
 
 ---
 
 ## 📜 License
 
-**GNU General Public License v3.0 (GPL-3.0)**
+Distributed under the **GNU General Public License v3.0 (GPL-3.0)**.
